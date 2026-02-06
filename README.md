@@ -40,8 +40,8 @@ npm install
 
 # Python virtual environment (Windows)
 python -m venv python\venv
-python\venv\Scripts\activate
-pip install -r python\requirements.txt
+source python/venv/Scripts/activate
+pip install -r python/requirements.txt
 ```
 
 ### 3. Download the LLM model
