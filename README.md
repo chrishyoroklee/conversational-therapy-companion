@@ -6,9 +6,9 @@ A local AI voice assistant with a therapist persona. All AI processing runs on y
 
 ```
 Electron (React/TS UI)  <-->  Node.js Main Process  <-->  Python Sidecar
-                                                          ├── ASR (Whisper)
-                                                          ├── LLM (Llama.cpp)
-                                                          └── TTS (Piper)
+                                                          ├── ASR (faster-whisper)
+                                                          ├── LLM (llama-cpp-python)
+                                                          └── TTS (edge-tts)
 ```
 
 The app uses a **Multi-Process Sidecar Architecture**:
@@ -22,19 +22,62 @@ The app uses a **Multi-Process Sidecar Architecture**:
 - Python 3.10+
 - sox (for audio recording): `brew install sox`
 
-## Quick Start
+## Setup
+
+### 1. System dependencies
 
 ```bash
-# 1. Run setup
+# macOS
+brew install sox python3 node
+```
+
+- **Node.js 18+** — Electron app runtime
+- **Python 3.10+** — AI engine sidecar
+- **sox** — audio recording (`rec` command)
+
+### 2. Install dependencies
+
+```bash
+# Node dependencies
+npm install
+
+# Python virtual environment
+python3 -m venv python/venv
+source python/venv/bin/activate
+pip install -r python/requirements.txt
+```
+
+Or run the setup script which does both:
+
+```bash
 ./scripts/setup.sh
+```
 
-# 2. Download AI models (see MODELS.md)
+### 3. Download the LLM model
 
-# 3. Configure environment
+The app uses a local GGUF model via llama-cpp-python. Download a small model for testing:
+
+```bash
+# Qwen2.5-0.5B-Instruct (smallest, ~470MB, good for testing)
+pip install huggingface-hub
+huggingface-cli download Qwen/Qwen2.5-0.5B-Instruct-GGUF \
+  qwen2.5-0.5b-instruct-q4_k_m.gguf \
+  --local-dir python/models
+```
+
+ASR (Whisper) downloads its model automatically on first run. TTS (edge-tts) streams from Microsoft Edge's neural TTS service — no model download needed.
+
+### 4. Configure environment
+
+```bash
 cp .env.example .env
-# Edit .env with your model paths
+```
 
-# 4. Run in development
+The defaults work out of the box if you downloaded the Qwen model above. See `.env.example` for all options.
+
+### 5. Run
+
+```bash
 npm run dev
 ```
 
@@ -68,7 +111,7 @@ python/
   engine.py       # Main sidecar loop
   asr.py          # Speech-to-text (Whisper)
   llm.py          # Chat (Llama.cpp)
-  tts.py          # Text-to-speech (Piper)
+  tts.py          # Text-to-speech (edge-tts)
   models/         # AI model files (gitignored)
 ```
 
@@ -78,4 +121,4 @@ python/
 2. Audio is saved to a temp `.wav` file
 3. File path is sent to the Python sidecar for transcription (Whisper)
 4. Transcription is sent to the LLM for a therapeutic response
-5. Response appears in the chat as an AI message
+5. Response appears in the chat and is spoken aloud via TTS
