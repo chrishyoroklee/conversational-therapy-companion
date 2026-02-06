@@ -128,8 +128,20 @@ class _CPUTranscriber:
         print("Whisper model loaded", file=sys.stderr)
 
     def transcribe(self, audio_path: str) -> str:
-        segments, _ = self.model.transcribe(audio_path, beam_size=5)
+        start_time = time.time()
+        
+        # Optimize transcription for speed
+        segments, _ = self.model.transcribe(
+            audio_path, 
+            beam_size=1,  # Reduced from 5 for faster transcription
+            best_of=1,    # Reduced for speed
+            temperature=0.0,  # Deterministic for consistency
+        )
         text = " ".join(segment.text.strip() for segment in segments)
+        
+        transcription_time = time.time() - start_time
+        print(f"ASR timing: transcription={transcription_time:.2f}s", file=sys.stderr)
+        
         return text
 
 
