@@ -9,10 +9,13 @@ type MessageCallback = (message: Record<string, unknown>) => void
 const listeners: Set<MessageCallback> = new Set()
 
 function getPythonPath(): string {
+  const isWindows = process.platform === 'win32'
+  const pythonExecutable = isWindows ? 'Scripts\\python.exe' : 'bin/python'
+  
   if (app.isPackaged) {
-    return path.join(process.resourcesPath, 'python', 'venv', 'bin', 'python')
+    return path.join(process.resourcesPath, 'python', 'venv', pythonExecutable)
   }
-  return path.join(app.getAppPath(), 'python', 'venv', 'bin', 'python')
+  return path.join(app.getAppPath(), 'python', 'venv', pythonExecutable)
 }
 
 function getEnginePath(): string {

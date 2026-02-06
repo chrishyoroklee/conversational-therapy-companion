@@ -18,16 +18,23 @@ export function startRecording(): string {
   const filePath = path.join(getTempDir(), `recording_${Date.now()}.wav`)
   currentFilePath = filePath
 
-  // Use sox (rec) for cross-platform recording
-  // Requires sox to be installed: brew install sox
-  recordProcess = exec(
-    `rec -r 16000 -c 1 -b 16 "${filePath}"`,
-    (error) => {
-      if (error && !error.killed) {
-        console.error('Recording error:', error.message)
-      }
+  // Use platform-specific recording commands
+  let recordCommand: string
+  if (process.platform === 'win32') {
+    // Windows: Use FFmpeg to record from default audio input
+    // Use the microphone device found on this system
+    recordCommand = `ffmpeg -f dshow -i audio="Microphone Array (Qualcomm(R) Aqstic(TM) ACX Static Endpoints Audio Device)" -ar 16000 -ac 1 -acodec pcm_s16le -y "${filePath}"`
+  } else {
+    // macOS/Linux: Use sox (rec) 
+    // Requires sox to be installed: brew install sox (macOS) or apt install sox (Linux)
+    recordCommand = `rec -r 16000 -c 1 -b 16 "${filePath}"`
+  }
+  
+  recordProcess = exec(recordCommand, (error) => {
+    if (error && !error.killed) {
+      console.error('Recording error:', error.message)
     }
-  )
+  })
 
   return filePath
 }
@@ -45,10 +52,19 @@ export function stopRecording(): Promise<string | null> {
     recordProcess = null
 
     proc.on('exit', () => {
-      resolve(filePath)
+      // Add a small delay to ensure file is fully written
+      setTimeout(() => {
+        resolve(filePath)
+      }, 100)
     })
 
-    proc.kill('SIGINT')
+    // Use 'q' command to gracefully stop FFmpeg instead of SIGINT
+    if (process.platform === 'win32') {
+      proc.stdin?.write('q')
+      proc.stdin?.end()
+    } else {
+      proc.kill('SIGINT')
+    }
   })
 }
 
