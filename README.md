@@ -57,26 +57,13 @@ pip install -r python\requirements.txt
 On macOS/Linux you can also run the setup script which does both:
 
 ```bash
-./scripts/setup.sh
-```
+# 1. Run setup
+./scripts/setup.sh  # macOS/Linux
+.\scripts\setup.ps1 # Windows
 
-### 3. Download the LLM model
+# 2. Download AI models (see MODELS.md)
 
-The app uses a local GGUF model via llama-cpp-python. Download a small model for testing:
-
-```bash
-# Qwen2.5-0.5B-Instruct (smallest, ~470MB, good for testing)
-pip install huggingface-hub
-huggingface-cli download Qwen/Qwen2.5-0.5B-Instruct-GGUF \
-  qwen2.5-0.5b-instruct-q4_k_m.gguf \
-  --local-dir python/models
-```
-
-ASR (Whisper) downloads its model automatically on first run. TTS (edge-tts) streams from Microsoft Edge's neural TTS service — no model download needed.
-
-### 4. Configure environment
-
-```bash
+# 3. Configure environment
 cp .env.example .env
 ```
 
