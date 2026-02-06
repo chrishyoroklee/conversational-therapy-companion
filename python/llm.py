@@ -33,6 +33,8 @@ def classify_intent(user_message: str) -> int:
     
     # GREEN (2) - Default casual conversation
     return 2  # GREEN - Continue talking
+
+def load_system_prompt():
     """Load system prompt from system-prompt.md file"""
     try:
         # Get the directory of this script
@@ -109,6 +111,13 @@ class ChatModel:
         intent_names = {0: "RED (Crisis)", 1: "YELLOW (Professional Help)", 2: "GREEN (Casual)"}
         print(f"Intent classified: {intent} - {intent_names[intent]}", file=sys.stderr)
         
+        # Handle different intents with simple actions
+        if intent == 0:  # RED - Crisis
+            return "RED"
+        elif intent == 1:  # YELLOW - Professional help needed
+            return "YELLOW"
+        
+        # GREEN (2) - Continue with normal chat
         # Use classified intent in system prompt
         formatted_prompt = self.system_prompt.replace("{INTENT}", str(intent))
         
