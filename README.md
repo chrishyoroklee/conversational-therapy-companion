@@ -7,7 +7,7 @@ A local AI voice assistant with a therapist persona. All AI processing runs on y
 ```
 Electron (React/TS UI)  <-->  Node.js Main Process  <-->  Python Sidecar
                                                           ├── ASR (faster-whisper)
-                                                          ├── LLM (llama-cpp-python)
+                                                          ├── LLM (llama-cpp-python)  
                                                           └── TTS (edge-tts)
 ```
 
@@ -20,73 +20,72 @@ The app uses a **Multi-Process Sidecar Architecture**:
 
 - Node.js 18+
 - Python 3.10+
-- sox (for audio recording)
+- FFmpeg (for audio recording on Windows)
 
-## Setup
+## Setup (Windows)
 
 ### 1. System dependencies
 
-**macOS**
-```bash
-brew install node python3 sox
-```
-
-**Windows**
 1. Install [Node.js](https://nodejs.org/) (18+)
-2. Install [Python](https://www.python.org/downloads/) (3.10+) — check "Add to PATH" during install
-3. Install [SoX](https://sourceforge.net/projects/sox/) and add it to your PATH
+2. Install [Python](https://www.python.org/downloads/) (3.10+) — check "Add to PATH" during install  
+3. Install [FFmpeg](https://ffmpeg.org/download.html#build-windows) and add it to your PATH
+   - Or use Chocolatey: `choco install ffmpeg`
+   - Or use winget: `winget install Gyan.FFmpeg`
 
 ### 2. Install dependencies
 
-```bash
+```powershell
 # Node dependencies
 npm install
 
-# Python virtual environment
-# macOS / Linux
-python3 -m venv python/venv
-source python/venv/bin/activate
-pip install -r python/requirements.txt
-
-# Windows
+# Python virtual environment (Windows)
 python -m venv python\venv
 python\venv\Scripts\activate
 pip install -r python\requirements.txt
-```
-
-On macOS/Linux you can also run the setup script which does both:
-
-```bash
-./scripts/setup.sh
 ```
 
 ### 3. Download the LLM model
 
 The app uses a local GGUF model via llama-cpp-python. Download a small model for testing:
 
-```bash
+```powershell
 # Qwen2.5-0.5B-Instruct (smallest, ~470MB, good for testing)
 pip install huggingface-hub
-huggingface-cli download Qwen/Qwen2.5-0.5B-Instruct-GGUF \
-  qwen2.5-0.5b-instruct-q4_k_m.gguf \
-  --local-dir python/models
+huggingface-cli download Qwen/Qwen2.5-0.5B-Instruct-GGUF qwen2.5-0.5b-instruct-q4_k_m.gguf --local-dir python/models
 ```
 
 ASR (Whisper) downloads its model automatically on first run. TTS (edge-tts) streams from Microsoft Edge's neural TTS service — no model download needed.
 
 ### 4. Configure environment
 
-```bash
-cp .env.example .env
+```powershell
+Copy-Item ".env.example" ".env"
 ```
 
 The defaults work out of the box if you downloaded the Qwen model above. See `.env.example` for all options.
 
 ### 5. Run
 
-```bash
+```powershell
 npm run dev
 ```
+
+## Troubleshooting (Windows)
+
+### Audio Recording Issues
+If you encounter audio recording errors:
+
+1. **Check microphone permissions**: Ensure your browser/app has microphone access
+2. **Find your audio device**: Run this command to list available devices:
+   ```powershell
+   ffmpeg -f dshow -list_devices true -i dummy
+   ```
+3. **Update audio device name**: If needed, update the device name in `src/main/audio.ts`
+
+### Common Issues
+- **Python not found**: Ensure Python is added to your PATH during installation
+- **FFmpeg not found**: Install FFmpeg and add it to your system PATH
+- **Module errors**: Activate the virtual environment: `python\venv\Scripts\activate`
 
 ## Scripts
 
