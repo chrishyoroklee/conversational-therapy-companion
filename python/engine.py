@@ -103,6 +103,18 @@ def main():
                 log(f"Response: {response[:50]}...")
                 send({"type": "llm_result", "text": response})
 
+                # Auto-trigger TTS for the response
+                if tts and response.strip():
+                    log(f"Synthesizing: {response[:50]}...")
+                    output_path = os.path.join(
+                        tempfile.gettempdir(), f"tts_{os.getpid()}_{id(response)}.mp3"
+                    )
+                    result = tts.synthesize(response, output_path)
+                    if result:
+                        send({"type": "tts_result", "path": result})
+                    else:
+                        log("TTS synthesis failed")
+
             elif action == "tts":
                 if not tts:
                     send({"type": "tts_result", "path": None, "message": "TTS unavailable"})

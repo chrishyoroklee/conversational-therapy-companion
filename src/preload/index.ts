@@ -14,6 +14,8 @@ const therapyAPI = {
       ipcRenderer.removeListener('engine:message', handler)
     }
   },
+  readAudioFile: (filePath: string): Promise<string | null> =>
+    ipcRenderer.invoke('audio:read', filePath),
   removeEngineListener: (): void => {
     ipcRenderer.removeAllListeners('engine:message')
   }

@@ -76,6 +76,19 @@ export default function App(): React.JSX.Element {
           setCurrentTranscript('')
           break
         }
+
+        case 'tts_result': {
+          const audioPath = message.path as string | null
+          if (audioPath) {
+            api.readAudioFile(audioPath).then((dataUrl) => {
+              if (dataUrl) {
+                const audio = new Audio(dataUrl)
+                audio.play().catch((err) => console.error('Audio playback error:', err))
+              }
+            })
+          }
+          break
+        }
       }
     })
 

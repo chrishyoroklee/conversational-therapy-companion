@@ -1,41 +1,24 @@
 import os
 import sys
-import io
-import wave
-import numpy as np
+import asyncio
+import edge_tts
 
-try:
-    from piper.voice import PiperVoice
-except ImportError:
-    PiperVoice = None
+DEFAULT_VOICE = "en-US-AriaNeural"
 
 
 class Speaker:
     def __init__(self):
-        if PiperVoice is None:
-            print("Piper TTS not available, TTS disabled", file=sys.stderr)
-            self.voice = None
-            return
-
-        model_path = os.getenv("PIPER_MODEL_PATH", "models/voice.onnx")
-        if not os.path.exists(model_path):
-            print(f"Piper model not found at {model_path}, TTS disabled", file=sys.stderr)
-            self.voice = None
-            return
-
-        print(f"Loading Piper model: {model_path}", file=sys.stderr)
-        self.voice = PiperVoice.load(model_path)
-        print("Piper model loaded", file=sys.stderr)
+        self.voice = os.getenv("TTS_VOICE", DEFAULT_VOICE)
+        print(f"TTS ready (voice: {self.voice})", file=sys.stderr)
 
     def synthesize(self, text: str, output_path: str) -> str | None:
-        if self.voice is None:
+        try:
+            asyncio.run(self._generate(text, output_path))
+            return output_path
+        except Exception as e:
+            print(f"TTS error: {e}", file=sys.stderr)
             return None
 
-        wav_buffer = io.BytesIO()
-        with wave.open(wav_buffer, "wb") as wav_file:
-            self.voice.synthesize(text, wav_file)
-
-        with open(output_path, "wb") as f:
-            f.write(wav_buffer.getvalue())
-
-        return output_path
+    async def _generate(self, text: str, output_path: str) -> None:
+        communicate = edge_tts.Communicate(text, self.voice)
+        await communicate.save(output_path)
