@@ -22,7 +22,7 @@ export function startRecording(): string {
   let recordCommand: string
   if (process.platform === 'win32') {
     // Windows: Use FFmpeg to record from default audio input
-    let deviceName = 'Microphone Array (Realtek(R) Audio)' // Default fallback
+    let deviceName = 'Microphone Array (Qualcomm(R) Aqstic(TM) ACX Static Endpoints Audio Device)' // Default fallback
 
     try {
       // Run ffmpeg to list devices
