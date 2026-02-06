@@ -26,7 +26,8 @@ The app uses a **Multi-Process Sidecar Architecture**:
 
 ```bash
 # 1. Run setup
-./scripts/setup.sh
+./scripts/setup.sh  # macOS/Linux
+.\scripts\setup.ps1 # Windows
 
 # 2. Download AI models (see MODELS.md)
 
