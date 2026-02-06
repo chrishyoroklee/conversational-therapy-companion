@@ -1,9 +1,38 @@
 import os
 import sys
 import time
+import re
 from llama_cpp import Llama
 
-def load_system_prompt():
+def classify_intent(user_message: str) -> int:
+    """Classify user intent: 0=RED (crisis), 1=YELLOW (therapist needed), 2=GREEN (casual chat)"""
+    message_lower = user_message.lower()
+    
+    # RED (0) - Crisis/self-harm indicators
+    red_patterns = [
+        r"\b(kill|hurt|harm|suicide|die|death|end it all)\b.*\b(myself|me)\b",
+        r"\b(want to die|suicidal|self harm|cut myself|overdose)\b",
+        r"\b(no point|give up|can't go on|end my life)\b"
+    ]
+    
+    for pattern in red_patterns:
+        if re.search(pattern, message_lower):
+            return 0  # RED - Crisis
+    
+    # YELLOW (1) - Professional help needed
+    yellow_patterns = [
+        r"\b(therapist|counselor|psychologist|psychiatrist|therapy)\b",
+        r"\b(depression|anxiety|panic|trauma|ptsd)\b",
+        r"\b(need help|professional help|see someone|talk to someone)\b",
+        r"\b(medication|antidepressant|treatment)\b"
+    ]
+    
+    for pattern in yellow_patterns:
+        if re.search(pattern, message_lower):
+            return 1  # YELLOW - Professional help
+    
+    # GREEN (2) - Default casual conversation
+    return 2  # GREEN - Continue talking
     """Load system prompt from system-prompt.md file"""
     try:
         # Get the directory of this script
@@ -75,9 +104,13 @@ class ChatModel:
     def chat(self, user_message: str) -> str:
         start_time = time.time()
         
-        # For now, assume INTENT = 0 (Keep Talking) - you can extend this later
-        # to analyze the user message and determine intent
-        formatted_prompt = self.system_prompt.replace("{INTENT}", "0")
+        # Classify intent first
+        intent = classify_intent(user_message)
+        intent_names = {0: "RED (Crisis)", 1: "YELLOW (Professional Help)", 2: "GREEN (Casual)"}
+        print(f"Intent classified: {intent} - {intent_names[intent]}", file=sys.stderr)
+        
+        # Use classified intent in system prompt
+        formatted_prompt = self.system_prompt.replace("{INTENT}", str(intent))
         
         self.history.append({"role": "user", "content": user_message})
 
