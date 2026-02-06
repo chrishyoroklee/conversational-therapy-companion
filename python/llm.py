@@ -1,5 +1,7 @@
 import os
 import sys
+import time
+import re
 
 from qnn_utils import is_npu_available
 
@@ -9,9 +11,10 @@ def classify_intent(user_message: str) -> int:
     
     # RED (0) - Crisis/self-harm indicators
     red_patterns = [
-        r"\b(kill|hurt|harm|suicide|die|death|end it all)\b.*\b(myself|me)\b",
+        r"\b(kill|hurt|harm)\b.*\b(myself|me)\b",  # "hurt myself", "kill me"
         r"\b(want to die|suicidal|self harm|cut myself|overdose)\b",
-        r"\b(no point|give up|can't go on|end my life)\b"
+        r"\b(suicide|end it all|end my life|no point|give up|can't go on)\b",  # More flexible
+        r"\b(want to)\b.*\b(die|end|quit|stop)\b",  # "want to die", "want to end"
     ]
     
     for pattern in red_patterns:

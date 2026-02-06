@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import numpy as np
 
 from qnn_utils import is_npu_available
