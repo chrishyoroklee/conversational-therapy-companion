@@ -11,7 +11,7 @@ interface OnboardingScreenProps {
 const steps = [
   {
     title: 'Lyra listens',
-    body: 'Speak naturally. Lyra will listen, reflect back what it hears, and ask gentle questions. Think of it as older-sister energy -- psychology-informed, but never clinical.',
+    body: 'Speak naturally. Lyra will listen, reflect back what it hears, and ask gentle questions. Think of her as older-sister energy -- psychology-informed, but never clinical.',
   },
   {
     title: 'What Lyra is not',
