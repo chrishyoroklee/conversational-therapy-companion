@@ -50,8 +50,8 @@ pip install -r python/requirements.txt
 
 # Windows
 python -m venv python\venv
-python\venv\Scripts\activate
-pip install -r python\requirements.txt
+source python/venv/Scripts/activate
+pip install -r python/requirements.txt
 ```
 
 On macOS/Linux you can also run the setup script which does both:
