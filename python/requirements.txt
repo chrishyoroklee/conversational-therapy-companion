@@ -1,5 +1,12 @@
+# CPU fallback (always installed)
 faster-whisper>=1.0.0
 llama-cpp-python>=0.2.0
 edge-tts>=7.0.0
 numpy>=1.24.0
 python-dotenv>=1.0.0
+
+# NPU support (install these on Snapdragon device)
+# onnxruntime-qnn          # ONNX Runtime with QNN EP (Windows ARM64)
+# onnxruntime-genai        # For LLM generation with ONNX Runtime
+# qai-hub-models           # For model export/download
+# openai-whisper           # For tokenizer/mel filters
