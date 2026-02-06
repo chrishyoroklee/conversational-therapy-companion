@@ -14,4 +14,3 @@ python/models/*.json
 .env
 temp/
 *.log
-src/main/audio.ts
