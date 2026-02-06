@@ -162,9 +162,16 @@ export function useLyraState() {
         case 'llm_processing':
           dispatch({ type: 'LLM_PROCESSING' })
           break
-        case 'llm_result':
-          dispatch({ type: 'LLM_RESULT', text: message.text as string })
+        case 'llm_result': {
+          const responseText = message.text as string
+          // Check for RED crisis intent - show crisis screen immediately
+          if (responseText.trim() === 'RED') {
+            dispatch({ type: 'NAVIGATE', screen: 'crisis' })
+          } else {
+            dispatch({ type: 'LLM_RESULT', text: responseText })
+          }
           break
+        }
         case 'tts_result': {
           const audioPath = message.path as string | null
           if (audioPath) {
