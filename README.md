@@ -240,3 +240,47 @@ If you see `QNNExecutionProvider not found`, the QNN SDK is not properly install
 cd python
 python -c "from qnn_utils import is_npu_available; print('NPU:', is_npu_available())"
 ```
+
+### Benchmarking NPU vs CPU
+
+A built-in benchmark tool compares latency, throughput, and resource usage between the NPU and CPU backends.
+
+**Install optional dependency** (for CPU/memory usage metrics):
+
+```bash
+pip install psutil
+```
+
+**Run the benchmark:**
+
+```bash
+cd python
+
+# Full benchmark (ASR + LLM, 3 rounds each)
+python benchmark.py
+
+# More rounds for stable numbers
+python benchmark.py --rounds 5
+
+# LLM only
+python benchmark.py --skip-asr
+
+# ASR only
+python benchmark.py --skip-llm
+
+# Use your own audio file for ASR testing
+python benchmark.py --audio path/to/recording.wav
+```
+
+The benchmark loads each backend independently, runs a warmup pass, then times N rounds. It prints a side-by-side comparison table:
+
+```
+  Metric                              CPU                  NPU              Speedup
+  ------------------------------------------------------------------------------------
+  Mean latency                    1842.3 ms             412.7 ms              4.46x
+  Tokens/sec (avg)                8.2 tok/s           34.1 tok/s              4.16x
+  CPU usage (avg)                    87.3%               12.1%
+  Peak memory                      1204 MB              843 MB
+```
+
+On a CPU-only machine the NPU columns will show `n/a` — the CPU benchmarks still run normally.
