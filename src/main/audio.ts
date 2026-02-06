@@ -23,7 +23,7 @@ export function startRecording(): string {
   if (process.platform === 'win32') {
     // Windows: Use FFmpeg to record from default audio input
     // Use the microphone device found on this system
-    recordCommand = `ffmpeg -f dshow -i audio="Microphone Array (Qualcomm(R) Aqstic(TM) ACX Static Endpoints Audio Device)" -ar 16000 -ac 1 -acodec pcm_s16le -y "${filePath}"`
+    recordCommand = `ffmpeg -f dshow -i audio="Microphone Array (Intel® Smart Sound Technology for Digital Microphones)" -ar 16000 -ac 1 -acodec pcm_s16le -y "${filePath}"`
   } else {
     // macOS/Linux: Use sox (rec) 
     // Requires sox to be installed: brew install sox (macOS) or apt install sox (Linux)

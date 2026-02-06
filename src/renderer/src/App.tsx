@@ -1,129 +1,70 @@
-import { useState, useEffect, useCallback } from 'react'
-import StatusBar from './components/StatusBar'
-import ChatHistory from './components/ChatHistory'
-import TranscriptDisplay from './components/TranscriptDisplay'
-import MicrophoneButton from './components/MicrophoneButton'
-import type { Message } from './types/messages'
-
-type EngineStatus = 'loading' | 'ready' | 'error'
+import { useLyraState } from './hooks/useLyraState'
+import LandingScreen from './screens/LandingScreen'
+import OnboardingScreen from './screens/OnboardingScreen'
+import CheckInScreen from './screens/CheckInScreen'
+import SessionScreen from './screens/SessionScreen'
+import CrisisScreen from './screens/CrisisScreen'
 
 export default function App(): React.JSX.Element {
-  const [engineStatus, setEngineStatus] = useState<EngineStatus>('loading')
-  const [statusMessage, setStatusMessage] = useState<string>()
-  const [isRecording, setIsRecording] = useState(false)
-  const [currentTranscript, setCurrentTranscript] = useState('')
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [messages, setMessages] = useState<Message[]>([])
+  const {
+    state,
+    navigate,
+    setRisk,
+    toggleInputMode,
+    startRecording,
+    stopRecording,
+    sendText,
+  } = useLyraState()
 
-  const addMessage = useCallback((role: 'user' | 'assistant', content: string) => {
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        role,
-        content,
-        timestamp: Date.now()
-      }
-    ])
-  }, [])
+  switch (state.screen) {
+    case 'landing':
+      return (
+        <LandingScreen
+          onStart={() => navigate('onboarding')}
+          onHowItWorks={() => navigate('onboarding')}
+          onCrisis={() => navigate('crisis')}
+        />
+      )
 
-  useEffect(() => {
-    const api = window.therapyAPI
-    if (!api) return
+    case 'onboarding':
+      return (
+        <OnboardingScreen
+          onComplete={() => navigate('checkin')}
+          onSkip={() => navigate('checkin')}
+          onCrisis={() => navigate('crisis')}
+        />
+      )
 
-    const removeListener = api.onEngineMessage((message) => {
-      const type = message.type as string
+    case 'checkin':
+      return (
+        <CheckInScreen
+          onSelect={setRisk}
+          onCrisis={() => navigate('crisis')}
+        />
+      )
 
-      switch (type) {
-        case 'ready':
-          setEngineStatus('ready')
-          setStatusMessage(undefined)
-          break
+    case 'session':
+      return (
+        <SessionScreen
+          state={state}
+          onStartRecording={startRecording}
+          onStopRecording={stopRecording}
+          onSendText={sendText}
+          onToggleInputMode={toggleInputMode}
+          onEndSession={() => navigate('landing')}
+        />
+      )
 
-        case 'error':
-          setEngineStatus('error')
-          setStatusMessage(message.message as string)
-          setIsProcessing(false)
-          break
+    case 'crisis':
+      return <CrisisScreen onBack={() => navigate('landing')} />
 
-        case 'asr_processing':
-          setIsProcessing(true)
-          setCurrentTranscript('')
-          break
-
-        case 'asr_result': {
-          const text = message.text as string
-          setCurrentTranscript(text)
-          setIsProcessing(false)
-
-          if (text.trim()) {
-            addMessage('user', text)
-            // Send to LLM
-            api.sendToEngine({ type: 'llm', text })
-            setIsProcessing(true)
-          }
-          break
-        }
-
-        case 'llm_processing':
-          setIsProcessing(true)
-          break
-
-        case 'llm_result': {
-          const response = message.text as string
-          addMessage('assistant', response)
-          setIsProcessing(false)
-          setCurrentTranscript('')
-          break
-        }
-
-        case 'tts_result': {
-          const audioPath = message.path as string | null
-          if (audioPath) {
-            api.readAudioFile(audioPath).then((dataUrl) => {
-              if (dataUrl) {
-                const audio = new Audio(dataUrl)
-                audio.play().catch((err) => console.error('Audio playback error:', err))
-              }
-            })
-          }
-          break
-        }
-      }
-    })
-
-    return removeListener
-  }, [addMessage])
-
-  const handleMicClick = useCallback(async () => {
-    const api = window.therapyAPI
-    if (!api) return
-
-    if (isRecording) {
-      setIsRecording(false)
-      const filePath = await api.stopRecording()
-      if (filePath) {
-        api.sendToEngine({ type: 'asr', path: filePath })
-      }
-    } else {
-      setIsRecording(true)
-      await api.startRecording()
-    }
-  }, [isRecording])
-
-  return (
-    <div className="h-screen flex flex-col bg-therapy-bg">
-      <StatusBar status={engineStatus} message={statusMessage} />
-
-      <ChatHistory messages={messages} />
-
-      <TranscriptDisplay transcript={currentTranscript} isProcessing={isProcessing} />
-
-      <MicrophoneButton
-        isRecording={isRecording}
-        disabled={engineStatus !== 'ready'}
-        onClick={handleMicClick}
-      />
-    </div>
-  )
+    default:
+      return (
+        <LandingScreen
+          onStart={() => navigate('onboarding')}
+          onHowItWorks={() => navigate('onboarding')}
+          onCrisis={() => navigate('crisis')}
+        />
+      )
+  }
 }
