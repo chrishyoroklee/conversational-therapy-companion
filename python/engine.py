@@ -30,14 +30,29 @@ def main():
 
     # Import and initialize models
     from asr import Transcriber
-    from llm import ChatModel
-    from tts import Speaker
 
     log("Loading models...")
     asr = Transcriber()
-    llm = ChatModel()
-    tts = Speaker()
-    log("All models loaded")
+
+    llm = None
+    tts = None
+
+    try:
+        from llm import ChatModel
+        llm = ChatModel()
+    except Exception as e:
+        log(f"LLM not available: {e}")
+
+    try:
+        from tts import Speaker
+        tts = Speaker()
+    except Exception as e:
+        log(f"TTS not available: {e}")
+
+    log("Models loaded (ASR: ready, LLM: %s, TTS: %s)" % (
+        "ready" if llm else "unavailable",
+        "ready" if tts else "unavailable",
+    ))
 
     # Signal ready
     send({"type": "ready"})
@@ -73,6 +88,10 @@ def main():
                 send({"type": "asr_result", "text": text})
 
             elif action == "llm":
+                if not llm:
+                    send({"type": "error", "message": "LLM not available (no model loaded)"})
+                    continue
+
                 text = req.get("text", "")
                 if not text:
                     send({"type": "error", "message": "Missing 'text' for LLM"})
@@ -85,6 +104,10 @@ def main():
                 send({"type": "llm_result", "text": response})
 
             elif action == "tts":
+                if not tts:
+                    send({"type": "tts_result", "path": None, "message": "TTS unavailable"})
+                    continue
+
                 text = req.get("text", "")
                 if not text:
                     send({"type": "error", "message": "Missing 'text' for TTS"})

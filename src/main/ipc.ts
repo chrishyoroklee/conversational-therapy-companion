@@ -8,8 +8,8 @@ export function setupIPC(mainWindow: BrowserWindow): void {
     return filePath
   })
 
-  ipcMain.handle('audio:stop', () => {
-    const filePath = stopRecording()
+  ipcMain.handle('audio:stop', async () => {
+    const filePath = await stopRecording()
     return filePath
   })
 

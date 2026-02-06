@@ -39,7 +39,7 @@ function createWindow(): BrowserWindow {
   return mainWindow
 }
 
-app.whenReady().then(async () => {
+app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.therapy.companion')
 
   app.on('browser-window-created', (_, window) => {
@@ -49,17 +49,19 @@ app.whenReady().then(async () => {
   const mainWindow = createWindow()
   setupIPC(mainWindow)
 
-  // Start the Python sidecar
-  try {
-    await startSidecar()
-    mainWindow.webContents.send('engine:message', { type: 'ready' })
-  } catch (err) {
-    console.error('Failed to start sidecar:', err)
-    mainWindow.webContents.send('engine:message', {
-      type: 'error',
-      message: 'Failed to start AI engine. Check Python setup.'
-    })
-  }
+  // Start the Python sidecar after renderer has loaded so IPC listeners are ready
+  mainWindow.webContents.on('did-finish-load', async () => {
+    try {
+      await startSidecar()
+      mainWindow.webContents.send('engine:message', { type: 'ready' })
+    } catch (err) {
+      console.error('Failed to start sidecar:', err)
+      mainWindow.webContents.send('engine:message', {
+        type: 'error',
+        message: 'Failed to start AI engine. Check Python setup.'
+      })
+    }
+  })
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

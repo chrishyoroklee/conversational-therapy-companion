@@ -6,8 +6,13 @@ const therapyAPI = {
   stopRecording: (): Promise<string | null> => ipcRenderer.invoke('audio:stop'),
   sendToEngine: (message: Record<string, unknown>): Promise<void> =>
     ipcRenderer.invoke('engine:send', message),
-  onEngineMessage: (callback: (message: Record<string, unknown>) => void): void => {
-    ipcRenderer.on('engine:message', (_event, message) => callback(message))
+  onEngineMessage: (callback: (message: Record<string, unknown>) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, message: Record<string, unknown>): void =>
+      callback(message)
+    ipcRenderer.on('engine:message', handler)
+    return () => {
+      ipcRenderer.removeListener('engine:message', handler)
+    }
   },
   removeEngineListener: (): void => {
     ipcRenderer.removeAllListeners('engine:message')

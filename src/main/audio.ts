@@ -32,14 +32,24 @@ export function startRecording(): string {
   return filePath
 }
 
-export function stopRecording(): string | null {
-  if (recordProcess) {
-    recordProcess.kill('SIGINT')
-    recordProcess = null
-  }
+export function stopRecording(): Promise<string | null> {
   const filePath = currentFilePath
   currentFilePath = null
-  return filePath
+
+  if (!recordProcess) {
+    return Promise.resolve(filePath)
+  }
+
+  return new Promise((resolve) => {
+    const proc = recordProcess!
+    recordProcess = null
+
+    proc.on('exit', () => {
+      resolve(filePath)
+    })
+
+    proc.kill('SIGINT')
+  })
 }
 
 export function cleanupTempFiles(): void {

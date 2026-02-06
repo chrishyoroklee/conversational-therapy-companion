@@ -31,7 +31,7 @@ export default function App(): React.JSX.Element {
     const api = window.therapyAPI
     if (!api) return
 
-    api.onEngineMessage((message) => {
+    const removeListener = api.onEngineMessage((message) => {
       const type = message.type as string
 
       switch (type) {
@@ -79,9 +79,7 @@ export default function App(): React.JSX.Element {
       }
     })
 
-    return () => {
-      api.removeEngineListener()
-    }
+    return removeListener
   }, [addMessage])
 
   const handleMicClick = useCallback(async () => {
