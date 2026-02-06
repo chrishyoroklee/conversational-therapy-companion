@@ -20,20 +20,21 @@ The app uses a **Multi-Process Sidecar Architecture**:
 
 - Node.js 18+
 - Python 3.10+
-- sox (for audio recording): `brew install sox`
+- sox (for audio recording)
 
 ## Setup
 
 ### 1. System dependencies
 
+**macOS**
 ```bash
-# macOS
-brew install sox python3 node
+brew install node python3 sox
 ```
 
-- **Node.js 18+** — Electron app runtime
-- **Python 3.10+** — AI engine sidecar
-- **sox** — audio recording (`rec` command)
+**Windows**
+1. Install [Node.js](https://nodejs.org/) (18+)
+2. Install [Python](https://www.python.org/downloads/) (3.10+) — check "Add to PATH" during install
+3. Install [SoX](https://sourceforge.net/projects/sox/) and add it to your PATH
 
 ### 2. Install dependencies
 
@@ -42,12 +43,18 @@ brew install sox python3 node
 npm install
 
 # Python virtual environment
+# macOS / Linux
 python3 -m venv python/venv
 source python/venv/bin/activate
 pip install -r python/requirements.txt
+
+# Windows
+python -m venv python\venv
+python\venv\Scripts\activate
+pip install -r python\requirements.txt
 ```
 
-Or run the setup script which does both:
+On macOS/Linux you can also run the setup script which does both:
 
 ```bash
 ./scripts/setup.sh
