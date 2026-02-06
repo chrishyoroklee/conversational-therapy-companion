@@ -1,0 +1,16 @@
+node_modules/
+out/
+dist/
+python/venv/
+python/__pycache__/
+python/models/*.gguf
+python/models/*.bin
+python/models/*.onnx
+python/models/*.json
+!python/models/.gitkeep
+*.gguf
+*.bin
+.DS_Store
+.env
+temp/
+*.log
