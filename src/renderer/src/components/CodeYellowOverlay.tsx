@@ -83,7 +83,7 @@ export default function CodeYellowOverlay({ onDismiss }: CodeYellowOverlayProps)
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-lyra-text/40 backdrop-blur-sm animate-fade-in">
       <div
         className={`bg-lyra-surface rounded-2xl shadow-xl mx-6 p-8 animate-slide-up ${
-          isResultsView ? 'max-w-6xl w-full max-h-[90vh]' : 'max-w-md w-full'
+          isResultsView ? 'max-w-6xl w-full max-h-[90vh] flex flex-col overflow-hidden' : 'max-w-md w-full'
         }`}
       >
         {step === 'consent' && <ConsentStep onConsent={handleConsent} />}
@@ -328,13 +328,13 @@ function ResultsStep({
   const hasMap = results.type === 'results' && results.therapists && results.therapists.length > 0
 
   return (
-    <div className="flex flex-col h-full">
-      <h2 className="text-xl font-medium text-lyra-text mb-4 text-center">
+    <div className="flex flex-col h-full min-h-0">
+      <h2 className="text-xl font-medium text-lyra-text mb-4 text-center flex-shrink-0">
         {results.type === 'results' ? 'Professionals near you' : 'Support resources'}
       </h2>
 
       {hasMap ? (
-        <div className="flex-1 flex gap-4 overflow-hidden">
+        <div className="flex-1 min-h-0 flex gap-4 overflow-hidden">
           {/* Map on the left */}
           <div className="flex-1 min-h-[500px]">
             <GoogleMapView
@@ -428,11 +428,12 @@ function ResultsStep({
 
       <button
         onClick={onDismiss}
-        className="w-full mt-4 py-3 px-6 rounded-xl bg-lyra-surface-dim text-lyra-text font-medium
-                   hover:bg-lyra-bg-deep transition-colors duration-200
+        className="w-full mt-4 py-3 px-6 rounded-xl bg-lyra-accent text-white font-medium
+                   flex-shrink-0
+                   hover:bg-lyra-accent-soft transition-colors duration-200
                    focus:outline-none focus-visible:ring-2 focus-visible:ring-lyra-accent"
       >
-        Return to conversation
+        Return to chat
       </button>
     </div>
   )
