@@ -1,5 +1,7 @@
-import { useReducer, useEffect, useCallback } from 'react'
+import { useReducer, useEffect, useCallback, useRef } from 'react'
 import type { LyraState, Screen, RiskLevel, LyraMessage } from '../types/lyra'
+import { sanitizeResponse } from '../lib/safeguard'
+import { checkResponseQuality, AUTO_REGEN_PROMPT } from '../lib/qualityChecks'
 import * as engine from '../engine'
 
 type Action =
@@ -17,6 +19,11 @@ type Action =
   | { type: 'TTS_RESULT'; path: string }
   | { type: 'TTS_DONE' }
   | { type: 'ADD_USER_MESSAGE'; text: string }
+  | { type: 'SET_INTENT'; intent: string | null }
+  | { type: 'DECLINE_GRATITUDE' }
+  | { type: 'SHOW_REFLECTION' }
+  | { type: 'HIDE_REFLECTION' }
+  | { type: 'SET_AUTO_REGEN_USED'; used: boolean }
 
 const initialState: LyraState = {
   screen: 'landing',
@@ -28,16 +35,48 @@ const initialState: LyraState = {
   isRecording: false,
   messages: [],
   currentTranscript: '',
+  sessionIntent: null,
+  turnCount: 0,
+  gratitudeDeclined: false,
+  showReflectionModal: false,
+  autoRegenUsed: false,
 }
 
 function reducer(state: LyraState, action: Action): LyraState {
   switch (action.type) {
-    case 'NAVIGATE':
+    case 'NAVIGATE': {
+      // Seed Lyra's intro message when entering a fresh session
+      const enteringFreshSession =
+        action.screen === 'session' && state.screen !== 'session' && state.messages.length === 0
+      const introMessage: LyraMessage | null = enteringFreshSession
+        ? {
+            id: crypto.randomUUID(),
+            role: 'lyra',
+            text: "Hey, I'm Lyra — I'm here to listen and chat with you. Whatever's on your mind, big or small, you can share it at your own pace. How are you doing today?",
+            timestamp: Date.now(),
+            status: 'final',
+          }
+        : null
+
       return {
         ...state,
         screen: action.screen,
         orbState: action.screen === 'session' && state.engineStatus === 'ready' ? 'idle' : state.orbState,
+        ...(introMessage ? { messages: [introMessage] } : {}),
+        // Reset session state when leaving session
+        ...(action.screen === 'landing'
+          ? {
+            sessionIntent: null,
+            turnCount: 0,
+            gratitudeDeclined: false,
+            showReflectionModal: false,
+            messages: [],
+            riskLevel: null,
+            autoRegenUsed: false,
+          }
+          : {}),
       }
+    }
 
     case 'SET_RISK':
       return { ...state, riskLevel: action.level }
@@ -86,6 +125,7 @@ function reducer(state: LyraState, action: Action): LyraState {
         currentTranscript: action.text,
         orbState: 'thinking',
         messages: [...state.messages, userMsg],
+        autoRegenUsed: false,
       }
     }
 
@@ -101,6 +141,7 @@ function reducer(state: LyraState, action: Action): LyraState {
         ...state,
         orbState: 'thinking',
         messages: [...state.messages, msg],
+        autoRegenUsed: false,
       }
     }
 
@@ -108,10 +149,11 @@ function reducer(state: LyraState, action: Action): LyraState {
       return { ...state, orbState: 'thinking' }
 
     case 'LLM_RESULT': {
+      const sanitized = sanitizeResponse(action.text)
       const lyraMsg: LyraMessage = {
         id: crypto.randomUUID(),
         role: 'lyra',
-        text: action.text,
+        text: sanitized,
         timestamp: Date.now(),
         status: 'final',
       }
@@ -120,6 +162,8 @@ function reducer(state: LyraState, action: Action): LyraState {
         orbState: 'speaking',
         messages: [...state.messages, lyraMsg],
         currentTranscript: '',
+        turnCount: state.turnCount + 1,
+        autoRegenUsed: false,
       }
     }
 
@@ -129,6 +173,21 @@ function reducer(state: LyraState, action: Action): LyraState {
     case 'TTS_DONE':
       return { ...state, orbState: 'idle' }
 
+    case 'SET_INTENT':
+      return { ...state, sessionIntent: action.intent }
+
+    case 'DECLINE_GRATITUDE':
+      return { ...state, gratitudeDeclined: true }
+
+    case 'SHOW_REFLECTION':
+      return { ...state, showReflectionModal: true }
+
+    case 'HIDE_REFLECTION':
+      return { ...state, showReflectionModal: false }
+
+    case 'SET_AUTO_REGEN_USED':
+      return { ...state, autoRegenUsed: action.used }
+
     default:
       return state
   }
@@ -136,6 +195,11 @@ function reducer(state: LyraState, action: Action): LyraState {
 
 export function useLyraState() {
   const [state, dispatch] = useReducer(reducer, initialState)
+  const stateRef = useRef(state)
+
+  useEffect(() => {
+    stateRef.current = state
+  }, [state])
 
   useEffect(() => {
     const cleanup = engine.onEngineMessage((message) => {
@@ -155,7 +219,7 @@ export function useLyraState() {
           const text = message.text as string
           dispatch({ type: 'ASR_RESULT', text })
           if (text.trim()) {
-            engine.sendTextToLyra(text)
+            engine.sendTextToLyra(text, stateRef.current.sessionIntent)
           }
           break
         }
@@ -163,12 +227,34 @@ export function useLyraState() {
           dispatch({ type: 'LLM_PROCESSING' })
           break
         case 'llm_result': {
-          const responseText = message.text as string
-          // Check for RED crisis intent - show crisis screen immediately
-          if (responseText.trim() === 'RED') {
+          const riskLevel = (message.risk_level as string) ?? 'green'
+          const actions = (message.actions as string[]) ?? []
+          let assistantText = (message.text as string) ?? ''
+
+          // RED — crisis: navigate to crisis screen, no transcript message
+          if (riskLevel === 'red' || actions.includes('crisis')) {
             dispatch({ type: 'NAVIGATE', screen: 'crisis' })
+            break
+          }
+
+          // YELLOW — show support banner AND render the assistant text
+          if (riskLevel === 'yellow') {
+            dispatch({ type: 'SET_RISK', level: 'medium' })
+          }
+
+          // Fail-safe: if non-RED response has no text, use fallback
+          if (!assistantText.trim()) {
+            console.warn('[lyra] Empty assistant_text for non-RED response. Raw payload:', message)
+            assistantText = "I'm here with you. Can you tell me a little more about what's going on?"
+          }
+
+          // Quality gate: one-time auto-regen for degenerate apology-only responses
+          if (!checkResponseQuality(assistantText) && !stateRef.current.autoRegenUsed) {
+            dispatch({ type: 'SET_AUTO_REGEN_USED', used: true })
+            dispatch({ type: 'LLM_PROCESSING' })
+            engine.sendTextToLyra(AUTO_REGEN_PROMPT, stateRef.current.sessionIntent)
           } else {
-            dispatch({ type: 'LLM_RESULT', text: responseText })
+            dispatch({ type: 'LLM_RESULT', text: assistantText })
           }
           break
         }
@@ -226,7 +312,24 @@ export function useLyraState() {
   const sendText = useCallback((text: string) => {
     if (!text.trim()) return
     dispatch({ type: 'ADD_USER_MESSAGE', text })
-    engine.sendTextToLyra(text)
+    engine.sendTextToLyra(text, state.sessionIntent)
+  }, [state.sessionIntent])
+
+  const setIntent = useCallback((intent: string | null) => {
+    dispatch({ type: 'SET_INTENT', intent })
+  }, [])
+
+  const declineGratitude = useCallback(() => {
+    dispatch({ type: 'DECLINE_GRATITUDE' })
+  }, [])
+
+  const requestEndSession = useCallback(() => {
+    dispatch({ type: 'SHOW_REFLECTION' })
+  }, [])
+
+  const confirmEndSession = useCallback(() => {
+    dispatch({ type: 'HIDE_REFLECTION' })
+    dispatch({ type: 'NAVIGATE', screen: 'landing' })
   }, [])
 
   return {
@@ -237,5 +340,9 @@ export function useLyraState() {
     startRecording,
     stopRecording,
     sendText,
+    setIntent,
+    declineGratitude,
+    requestEndSession,
+    confirmEndSession,
   }
 }

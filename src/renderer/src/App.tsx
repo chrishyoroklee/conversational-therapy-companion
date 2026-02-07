@@ -16,6 +16,10 @@ export default function App(): React.JSX.Element {
     startRecording,
     stopRecording,
     sendText,
+    setIntent,
+    declineGratitude,
+    requestEndSession,
+    confirmEndSession,
   } = useLyraState()
 
   const [codeYellowActive, setCodeYellowActive] = useState(false)
@@ -97,6 +101,9 @@ export default function App(): React.JSX.Element {
           {overlay}
         </>
       )
+
+    case 'gratitude':
+      return <GratitudeScreen onBack={() => navigate('session')} />
 
     default:
       return (

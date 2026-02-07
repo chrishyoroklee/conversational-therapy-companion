@@ -99,33 +99,29 @@ def main():
 
                 log(f"Generating response for: {text[:50]}...")
                 send({"type": "llm_processing"})
-                response = llm.chat(text)
-                log(f"Response: {response[:50]}...")
+                result = llm.chat(text)
 
-                # Check if code_yellow or code_red was triggered
-                actual_message = response  # Track the actual text to send/speak
-                if response == "RED":
-                    log("CODE_RED triggered - crisis detected")
-                    send({"type": "code_red", "triggered": True})
-                    actual_message = "I'm concerned about your safety. Please reach out for immediate help."
-                    send({"type": "llm_result", "text": actual_message})
-                elif response == "YELLOW":
-                    log("CODE_YELLOW triggered - professional help recommended")
-                    send({"type": "code_yellow", "triggered": True})
-                    actual_message = "I hear you. Let me help you find some support."
-                    send({"type": "llm_result", "text": actual_message})
-                else:
-                    send({"type": "llm_result", "text": response})
+                risk_level = result.get("risk_level", "green")
+                assistant_text = result.get("assistant_text", "")
+                actions = result.get("actions", [])
+
+                log(f"Response (risk={risk_level}): {assistant_text[:50]}...")
+                send({
+                    "type": "llm_result",
+                    "text": assistant_text,
+                    "risk_level": risk_level,
+                    "actions": actions,
+                })
 
                 # Auto-trigger TTS for the response
-                if tts and actual_message.strip():
-                    log(f"Synthesizing: {actual_message[:50]}...")
+                if tts and assistant_text.strip():
+                    log(f"Synthesizing: {assistant_text[:50]}...")
                     output_path = os.path.join(
-                        tempfile.gettempdir(), f"tts_{os.getpid()}_{id(actual_message)}.mp3"
+                        tempfile.gettempdir(), f"tts_{os.getpid()}_{id(assistant_text)}.mp3"
                     )
-                    result = tts.synthesize(actual_message, output_path)
-                    if result:
-                        send({"type": "tts_result", "path": result})
+                    synth_result = tts.synthesize(assistant_text, output_path)
+                    if synth_result:
+                        send({"type": "tts_result", "path": synth_result})
                     else:
                         log("TTS synthesis failed")
 

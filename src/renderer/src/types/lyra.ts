@@ -1,4 +1,4 @@
-export type Screen = 'landing' | 'onboarding' | 'checkin' | 'session' | 'crisis'
+export type Screen = 'landing' | 'onboarding' | 'checkin' | 'session' | 'crisis' | 'gratitude'
 
 export type RiskLevel = 'low' | 'medium' | 'high' | null
 
@@ -16,6 +16,12 @@ export interface LyraMessage {
 
 export type EngineStatus = 'loading' | 'ready' | 'error'
 
+export interface GratitudeEntry {
+  id: string
+  text: string
+  date: string
+}
+
 export interface LyraState {
   screen: Screen
   engineStatus: EngineStatus
@@ -26,4 +32,9 @@ export interface LyraState {
   isRecording: boolean
   messages: LyraMessage[]
   currentTranscript: string
+  sessionIntent: string | null
+  turnCount: number
+  gratitudeDeclined: boolean
+  showReflectionModal: boolean
+  autoRegenUsed: boolean
 }
