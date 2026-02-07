@@ -22,26 +22,7 @@ export function startRecording(): string {
   let recordCommand: string
   if (process.platform === 'win32') {
     // Windows: Use FFmpeg to record from default audio input
-    let deviceName = 'Microphone Array (Qualcomm(R) Aqstic(TM) ACX Static Endpoints Audio Device)' // Default fallback
-
-    try {
-      // Run ffmpeg to list devices
-      // ffmpeg -list_devices true -f dshow -i dummy
-      // Output is sent to stderr
-      const output = require('child_process').execSync('ffmpeg -list_devices true -f dshow -i dummy 2>&1', { encoding: 'utf8' })
-      console.log('[Audio] FFmpeg device list output:', output)
-
-      // Look for audio devices
-      // Pattern: [dshow @ ...]  "Microphone Name" (audio)
-      const match = output.match(/] "(.*)" \(audio\)/)
-      if (match && match[1]) {
-        deviceName = match[1]
-        console.log(`[Audio] Detected microphone: ${deviceName}`)
-      }
-    } catch (e) {
-      console.warn('[Audio] Failed to detect microphone, using default:', deviceName)
-    }
-
+    const deviceName = 'Microphone Array (Qualcomm(R) Aqstic(TM) ACX Static Endpoints Audio Device)'
     recordCommand = `ffmpeg -hide_banner -loglevel error -f dshow -i audio="${deviceName}" -ar 16000 -ac 1 -acodec pcm_s16le -y "${filePath}"`
   } else {
     // macOS/Linux: Use sox (rec)
