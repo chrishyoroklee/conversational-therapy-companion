@@ -42,28 +42,37 @@ export default function App(): React.JSX.Element {
   switch (state.screen) {
     case 'landing':
       return (
-        <LandingScreen
-          onStart={() => navigate('onboarding')}
-          onHowItWorks={() => navigate('onboarding')}
-          onCrisis={() => navigate('crisis')}
-        />
+        <>
+          <LandingScreen
+            onStart={() => navigate('onboarding')}
+            onHowItWorks={() => navigate('onboarding')}
+            onCrisis={() => navigate('crisis')}
+          />
+          {overlay}
+        </>
       )
 
     case 'onboarding':
       return (
-        <OnboardingScreen
-          onComplete={() => navigate('checkin')}
-          onSkip={() => navigate('checkin')}
-          onCrisis={() => navigate('crisis')}
-        />
+        <>
+          <OnboardingScreen
+            onComplete={() => navigate('checkin')}
+            onSkip={() => navigate('checkin')}
+            onCrisis={() => navigate('crisis')}
+          />
+          {overlay}
+        </>
       )
 
     case 'checkin':
       return (
-        <CheckInScreen
-          onSelect={setRisk}
-          onCrisis={() => navigate('crisis')}
-        />
+        <>
+          <CheckInScreen
+            onSelect={setRisk}
+            onCrisis={() => navigate('crisis')}
+          />
+          {overlay}
+        </>
       )
 
     case 'session':
@@ -82,15 +91,23 @@ export default function App(): React.JSX.Element {
       )
 
     case 'crisis':
-      return <CrisisScreen onBack={() => navigate('landing')} />
+      return (
+        <>
+          <CrisisScreen onBack={() => navigate('landing')} />
+          {overlay}
+        </>
+      )
 
     default:
       return (
-        <LandingScreen
-          onStart={() => navigate('onboarding')}
-          onHowItWorks={() => navigate('onboarding')}
-          onCrisis={() => navigate('crisis')}
-        />
+        <>
+          <LandingScreen
+            onStart={() => navigate('onboarding')}
+            onHowItWorks={() => navigate('onboarding')}
+            onCrisis={() => navigate('crisis')}
+          />
+          {overlay}
+        </>
       )
   }
 }

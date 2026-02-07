@@ -9,6 +9,8 @@ interface TherapistResult {
   address: string
   phone?: string
   rating?: number
+  lat: number
+  lng: number
 }
 
 interface FallbackResource {
@@ -21,6 +23,8 @@ interface CodeYellowResults {
   type: 'results' | 'fallback'
   therapists?: TherapistResult[]
   fallbackResources: FallbackResource[]
+  centerLat?: number
+  centerLng?: number
 }
 
 const FALLBACK_RESOURCES: FallbackResource[] = [
@@ -52,19 +56,38 @@ const FALLBACK_RESOURCES: FallbackResource[] = [
 ]
 
 function loadApiKey(): string | null {
+  // First try environment variable (electron-vite should load this)
+  if (process.env.GOOGLE_MAPS_API_KEY) {
+    console.log('[CODE_YELLOW] Using GOOGLE_MAPS_API_KEY from environment')
+    return process.env.GOOGLE_MAPS_API_KEY
+  }
+
+  // Try to manually read .env from project root
   try {
-    const envPath = join(app.getAppPath(), '.env')
+    // In development, go up from app path to find project root
+    const appPath = app.getAppPath()
+    const envPath = app.isPackaged
+      ? join(appPath, '.env')
+      : join(appPath, '..', '..', '.env')
+
+    console.log(`[CODE_YELLOW] Attempting to read .env from: ${envPath}`)
     const content = readFileSync(envPath, 'utf-8')
     for (const line of content.split('\n')) {
       const trimmed = line.trim()
       if (trimmed.startsWith('GOOGLE_MAPS_API_KEY=')) {
-        return trimmed.slice('GOOGLE_MAPS_API_KEY='.length).trim()
+        const key = trimmed.slice('GOOGLE_MAPS_API_KEY='.length).trim()
+        if (key) {
+          console.log('[CODE_YELLOW] Found GOOGLE_MAPS_API_KEY in .env file')
+          return key
+        }
       }
     }
-  } catch {
-    // .env not found or unreadable
+  } catch (err) {
+    console.warn('[CODE_YELLOW] Could not read .env file:', err)
   }
-  return process.env.GOOGLE_MAPS_API_KEY ?? null
+
+  console.warn('[CODE_YELLOW] No GOOGLE_MAPS_API_KEY found')
+  return null
 }
 
 function httpsGet(url: string): Promise<string> {
@@ -80,16 +103,20 @@ function httpsGet(url: string): Promise<string> {
 
 async function geocodeZip(zip: string, apiKey: string): Promise<{ lat: number; lng: number } | null> {
   const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(zip)}&key=${encodeURIComponent(apiKey)}`
+  console.log(`[CODE_YELLOW] Geocoding ZIP: ${zip}`)
   const raw = await httpsGet(url)
   const data = JSON.parse(raw)
 
+  console.log(`[CODE_YELLOW] Geocode API status: ${data.status}`)
   if (data.status !== 'OK' || !data.results?.length) {
+    console.warn(`[CODE_YELLOW] Geocoding failed: ${data.status}, error: ${data.error_message || 'none'}`)
     return null
   }
 
   const location = data.results[0].geometry?.location
   if (!location) return null
 
+  console.log(`[CODE_YELLOW] Geocoded to: ${location.lat}, ${location.lng}`)
   return { lat: location.lat, lng: location.lng }
 }
 
@@ -119,10 +146,13 @@ async function findTherapistsWithPhone(
     `&type=health` +
     `&key=${encodeURIComponent(apiKey)}`
 
+  console.log(`[CODE_YELLOW] Searching for therapists near ${lat}, ${lng}`)
   const raw = await httpsGet(url)
   const data = JSON.parse(raw)
 
+  console.log(`[CODE_YELLOW] Places API status: ${data.status}, results: ${data.results?.length || 0}`)
   if (data.status !== 'OK' || !data.results?.length) {
+    console.warn(`[CODE_YELLOW] Places search failed: ${data.status}, error: ${data.error_message || 'none'}`)
     return []
   }
 
@@ -130,9 +160,14 @@ async function findTherapistsWithPhone(
 
   const results: TherapistResult[] = await Promise.all(
     places.map(async (place: Record<string, unknown>) => {
+      const geometry = place.geometry as Record<string, unknown> | undefined
+      const location = geometry?.location as { lat: number; lng: number } | undefined
+
       const result: TherapistResult = {
         name: place.name as string,
-        address: place.vicinity as string
+        address: place.vicinity as string,
+        lat: location?.lat ?? 0,
+        lng: location?.lng ?? 0
       }
       if (typeof place.rating === 'number') {
         result.rating = place.rating
@@ -149,6 +184,7 @@ async function findTherapistsWithPhone(
     })
   )
 
+  console.log(`[CODE_YELLOW] Found ${results.length} therapists with details`)
   return results
 }
 
@@ -175,7 +211,9 @@ export async function lookupByZip(zip: string): Promise<CodeYellowResults> {
     return {
       type: 'results',
       therapists,
-      fallbackResources: FALLBACK_RESOURCES
+      fallbackResources: FALLBACK_RESOURCES,
+      centerLat: coords.lat,
+      centerLng: coords.lng
     }
   } catch (err) {
     console.error('CODE_YELLOW: API lookup failed:', err)

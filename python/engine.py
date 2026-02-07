@@ -101,15 +101,29 @@ def main():
                 send({"type": "llm_processing"})
                 response = llm.chat(text)
                 log(f"Response: {response[:50]}...")
-                send({"type": "llm_result", "text": response})
+
+                # Check if code_yellow or code_red was triggered
+                actual_message = response  # Track the actual text to send/speak
+                if response == "RED":
+                    log("CODE_RED triggered - crisis detected")
+                    send({"type": "code_red", "triggered": True})
+                    actual_message = "I'm concerned about your safety. Please reach out for immediate help."
+                    send({"type": "llm_result", "text": actual_message})
+                elif response == "YELLOW":
+                    log("CODE_YELLOW triggered - professional help recommended")
+                    send({"type": "code_yellow", "triggered": True})
+                    actual_message = "I hear you. Let me help you find some support."
+                    send({"type": "llm_result", "text": actual_message})
+                else:
+                    send({"type": "llm_result", "text": response})
 
                 # Auto-trigger TTS for the response
-                if tts and response.strip():
-                    log(f"Synthesizing: {response[:50]}...")
+                if tts and actual_message.strip():
+                    log(f"Synthesizing: {actual_message[:50]}...")
                     output_path = os.path.join(
-                        tempfile.gettempdir(), f"tts_{os.getpid()}_{id(response)}.mp3"
+                        tempfile.gettempdir(), f"tts_{os.getpid()}_{id(actual_message)}.mp3"
                     )
-                    result = tts.synthesize(response, output_path)
+                    result = tts.synthesize(actual_message, output_path)
                     if result:
                         send({"type": "tts_result", "path": result})
                     else:

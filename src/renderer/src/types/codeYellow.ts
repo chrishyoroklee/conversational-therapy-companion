@@ -3,12 +3,16 @@ export interface TherapistResult {
   address: string
   phone?: string
   rating?: number
+  lat: number
+  lng: number
 }
 
 export interface CodeYellowResults {
   type: 'results' | 'fallback'
   therapists?: TherapistResult[]
   fallbackResources: FallbackResource[]
+  centerLat?: number
+  centerLng?: number
 }
 
 export interface FallbackResource {

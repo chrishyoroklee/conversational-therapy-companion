@@ -1,10 +1,17 @@
 import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { config } from 'dotenv'
 import { startSidecar, stopSidecar } from './sidecar'
 import { cleanupTempFiles } from './audio'
 import { setupIPC } from './ipc'
 import { setupCodeYellow } from './codeYellow'
+
+// Load .env file from project root
+if (is.dev) {
+  config({ path: join(__dirname, '..', '..', '..', '.env') })
+  console.log('[Main] Loaded .env, GOOGLE_MAPS_API_KEY present:', !!process.env.GOOGLE_MAPS_API_KEY)
+}
 
 function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
