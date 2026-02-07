@@ -31,6 +31,11 @@ export function setupIPC(mainWindow: BrowserWindow): void {
   // Forward sidecar messages to renderer
   onSidecarMessage((message) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
+      // Intercept code_yellow events from sidecar
+      if (message.type === 'code_yellow' && message.triggered) {
+        mainWindow.webContents.send('code-yellow:triggered')
+        return
+      }
       mainWindow.webContents.send('engine:message', message)
     }
   })
