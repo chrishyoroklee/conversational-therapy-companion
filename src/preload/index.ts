@@ -18,6 +18,28 @@ const therapyAPI = {
     ipcRenderer.invoke('audio:read', filePath),
   removeEngineListener: (): void => {
     ipcRenderer.removeAllListeners('engine:message')
+  },
+  codeYellow: {
+    onTriggered: (callback: () => void): (() => void) => {
+      const handler = (): void => callback()
+      ipcRenderer.on('code-yellow:triggered', handler)
+      return () => {
+        ipcRenderer.removeListener('code-yellow:triggered', handler)
+      }
+    },
+    sendConsent: (consented: boolean): void => {
+      ipcRenderer.send('code-yellow:consent', consented)
+    },
+    submitZip: (zip: string): void => {
+      ipcRenderer.send('code-yellow:zip-lookup', zip)
+    },
+    onResults: (callback: (data: unknown) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: unknown): void => callback(data)
+      ipcRenderer.on('code-yellow:results', handler)
+      return () => {
+        ipcRenderer.removeListener('code-yellow:results', handler)
+      }
+    }
   }
 }
 
