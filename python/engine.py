@@ -99,19 +99,29 @@ def main():
 
                 log(f"Generating response for: {text[:50]}...")
                 send({"type": "llm_processing"})
-                response = llm.chat(text)
-                log(f"Response: {response[:50]}...")
-                send({"type": "llm_result", "text": response})
+                result = llm.chat(text)
+
+                risk_level = result.get("risk_level", "green")
+                assistant_text = result.get("assistant_text", "")
+                actions = result.get("actions", [])
+
+                log(f"Response (risk={risk_level}): {assistant_text[:50]}...")
+                send({
+                    "type": "llm_result",
+                    "text": assistant_text,
+                    "risk_level": risk_level,
+                    "actions": actions,
+                })
 
                 # Auto-trigger TTS for the response
-                if tts and response.strip():
-                    log(f"Synthesizing: {response[:50]}...")
+                if tts and assistant_text.strip():
+                    log(f"Synthesizing: {assistant_text[:50]}...")
                     output_path = os.path.join(
-                        tempfile.gettempdir(), f"tts_{os.getpid()}_{id(response)}.mp3"
+                        tempfile.gettempdir(), f"tts_{os.getpid()}_{id(assistant_text)}.mp3"
                     )
-                    result = tts.synthesize(response, output_path)
-                    if result:
-                        send({"type": "tts_result", "path": result})
+                    synth_result = tts.synthesize(assistant_text, output_path)
+                    if synth_result:
+                        send({"type": "tts_result", "path": synth_result})
                     else:
                         log("TTS synthesis failed")
 

@@ -4,6 +4,7 @@ import OnboardingScreen from './screens/OnboardingScreen'
 import CheckInScreen from './screens/CheckInScreen'
 import SessionScreen from './screens/SessionScreen'
 import CrisisScreen from './screens/CrisisScreen'
+import GratitudeScreen from './screens/GratitudeScreen'
 
 export default function App(): React.JSX.Element {
   const {
@@ -14,6 +15,10 @@ export default function App(): React.JSX.Element {
     startRecording,
     stopRecording,
     sendText,
+    setIntent,
+    declineGratitude,
+    requestEndSession,
+    confirmEndSession,
   } = useLyraState()
 
   switch (state.screen) {
@@ -51,12 +56,18 @@ export default function App(): React.JSX.Element {
           onStopRecording={stopRecording}
           onSendText={sendText}
           onToggleInputMode={toggleInputMode}
-          onEndSession={() => navigate('landing')}
+          onEndSession={requestEndSession}
+          onConfirmEndSession={confirmEndSession}
+          onSetIntent={setIntent}
+          onDeclineGratitude={declineGratitude}
         />
       )
 
     case 'crisis':
       return <CrisisScreen onBack={() => navigate('landing')} />
+
+    case 'gratitude':
+      return <GratitudeScreen onBack={() => navigate('session')} />
 
     default:
       return (
