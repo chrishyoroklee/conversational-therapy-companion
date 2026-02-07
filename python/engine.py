@@ -9,6 +9,7 @@ import sys
 import json
 import os
 import tempfile
+import time
 
 from dotenv import load_dotenv
 
@@ -59,24 +60,19 @@ def main():
 
     # Main loop: read JSON Lines from stdin
     for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
-
         try:
-            req = json.loads(line)
-        except json.JSONDecodeError as e:
-            send({"type": "error", "message": f"Invalid JSON: {e}"})
-            continue
+            request = json.loads(line.strip())
+            request_start = time.time()
+            print(f"[engine] Processing request: {request.get('type', 'unknown')}",
+                  file=sys.stderr)
 
-        action = req.get("type")
+            action = request.get("type")
 
-        try:
             if action == "ping":
                 send({"type": "pong"})
 
             elif action == "asr":
-                audio_path = req.get("path")
+                audio_path = request.get("path")
                 if not audio_path:
                     send({"type": "error", "message": "Missing 'path' for ASR"})
                     continue
@@ -92,7 +88,7 @@ def main():
                     send({"type": "error", "message": "LLM not available (no model loaded)"})
                     continue
 
-                text = req.get("text", "")
+                text = request.get("text", "")
                 if not text:
                     send({"type": "error", "message": "Missing 'text' for LLM"})
                     continue
@@ -106,6 +102,12 @@ def main():
                 actions = result.get("actions", [])
 
                 log(f"Response (risk={risk_level}): {assistant_text[:50]}...")
+                
+                # Emit code_yellow message when YELLOW intent is detected
+                if risk_level == "yellow":
+                    log("YELLOW intent detected - triggering Code Yellow")
+                    send({"type": "code_yellow", "triggered": True})
+                
                 send({
                     "type": "llm_result",
                     "text": assistant_text,
@@ -130,7 +132,7 @@ def main():
                     send({"type": "tts_result", "path": None, "message": "TTS unavailable"})
                     continue
 
-                text = req.get("text", "")
+                text = request.get("text", "")
                 if not text:
                     send({"type": "error", "message": "Missing 'text' for TTS"})
                     continue
@@ -148,9 +150,13 @@ def main():
             else:
                 send({"type": "error", "message": f"Unknown action: {action}"})
 
+            total_time = time.time() - request_start
+            print(f"[engine] Request completed in {total_time:.2f}s", file=sys.stderr)
+
         except Exception as e:
             log(f"Error handling {action}: {e}")
             send({"type": "error", "message": str(e)})
+            print(f"[engine] Error processing request: {action}", file=sys.stderr)
 
 
 if __name__ == "__main__":
