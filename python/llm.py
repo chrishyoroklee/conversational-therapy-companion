@@ -106,6 +106,29 @@ class ChatModel:
 
         self.history: list[dict[str, str]] = []
 
+    def warmup(self) -> None:
+        """Pre-warm the LLM by doing a quick inference with system prompt.
+        
+        This initializes the KV cache so the first real user message is faster.
+        """
+        print("Warming up LLM...", file=sys.stderr)
+        start_time = time.time()
+        
+        # Do a minimal inference to warm up the model
+        messages = [
+            {"role": "system", "content": self.system_prompt},
+            {"role": "user", "content": "hi"}
+        ]
+        
+        self.model.create_chat_completion(
+            messages=messages,
+            max_tokens=1,  # Generate just 1 token to minimize warmup time
+            temperature=0.7,
+        )
+        
+        warmup_time = time.time() - start_time
+        print(f"LLM warmup complete in {warmup_time:.2f}s", file=sys.stderr)
+
     def chat(self, user_message: str) -> dict:
         start_time = time.time()
 
