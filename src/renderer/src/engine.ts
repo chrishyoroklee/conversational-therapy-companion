@@ -21,14 +21,8 @@ export function sendAudioForTranscription(filePath: string): void {
   window.therapyAPI.sendToEngine({ type: 'asr', path: filePath })
 }
 
-export function sendTextToLyra(text: string, intent?: string | null): void {
-  let payload = text
-
-  if (intent) {
-    payload = `[Intent: ${intent}] ${payload}`
-  }
-
-  window.therapyAPI.sendToEngine({ type: 'llm', text: payload })
+export function sendTextToLyra(text: string): void {
+  window.therapyAPI.sendToEngine({ type: 'llm', text })
 }
 
 export async function speak(audioPath: string): Promise<void> {

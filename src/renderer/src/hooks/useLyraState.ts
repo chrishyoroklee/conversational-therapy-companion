@@ -1,7 +1,6 @@
 import { useReducer, useEffect, useCallback, useRef } from 'react'
 import type { LyraState, Screen, RiskLevel, LyraMessage } from '../types/lyra'
 import { sanitizeResponse } from '../lib/safeguard'
-import { checkResponseQuality, AUTO_REGEN_PROMPT } from '../lib/qualityChecks'
 import * as engine from '../engine'
 
 type Action =
@@ -219,7 +218,7 @@ export function useLyraState() {
           const text = message.text as string
           dispatch({ type: 'ASR_RESULT', text })
           if (text.trim()) {
-            engine.sendTextToLyra(text, stateRef.current.sessionIntent)
+            engine.sendTextToLyra(text)
           }
           break
         }
@@ -248,14 +247,7 @@ export function useLyraState() {
             assistantText = "I'm here with you. Can you tell me a little more about what's going on?"
           }
 
-          // Quality gate: one-time auto-regen for degenerate apology-only responses
-          if (!checkResponseQuality(assistantText) && !stateRef.current.autoRegenUsed) {
-            dispatch({ type: 'SET_AUTO_REGEN_USED', used: true })
-            dispatch({ type: 'LLM_PROCESSING' })
-            engine.sendTextToLyra(AUTO_REGEN_PROMPT, stateRef.current.sessionIntent)
-          } else {
-            dispatch({ type: 'LLM_RESULT', text: assistantText })
-          }
+          dispatch({ type: 'LLM_RESULT', text: assistantText })
           break
         }
         case 'tts_result': {
@@ -312,7 +304,7 @@ export function useLyraState() {
   const sendText = useCallback((text: string) => {
     if (!text.trim()) return
     dispatch({ type: 'ADD_USER_MESSAGE', text })
-    engine.sendTextToLyra(text, state.sessionIntent)
+    engine.sendTextToLyra(text)
   }, [state.sessionIntent])
 
   const setIntent = useCallback((intent: string | null) => {
