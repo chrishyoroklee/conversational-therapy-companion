@@ -88,6 +88,92 @@ button, input, textarea {
   filter: grayscale(0.5);
 }
 
+/* Orb depth layers */
+.orb-core {
+  box-shadow: 0 8px 32px rgba(124, 92, 252, 0.25),
+              inset 0 -4px 12px rgba(91, 63, 212, 0.3);
+}
+
+.orb-inner-glow {
+  pointer-events: none;
+}
+
+.orb-highlight {
+  pointer-events: none;
+}
+
+.orb-shadow {
+  pointer-events: none;
+}
+
+.orb-nebula {
+  pointer-events: none;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(196, 181, 253, 0.5), rgba(124, 92, 252, 0.15) 45%, rgba(45, 38, 64, 0) 70%),
+    radial-gradient(circle at 60% 70%, rgba(124, 92, 252, 0.25), rgba(45, 38, 64, 0) 60%);
+  filter: blur(18px);
+}
+
+.orb-ribbon {
+  pointer-events: none;
+  border-radius: 999px;
+  padding: 1.5px;
+  box-sizing: border-box;
+  background: linear-gradient(90deg, rgba(196, 181, 253, 0.6), rgba(255, 255, 255, 0.25), rgba(124, 92, 252, 0.55));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  filter: blur(0.4px);
+}
+
+.orb-ribbon-one {
+  opacity: 0.55;
+}
+
+.orb-ribbon-two {
+  opacity: 0.45;
+}
+
+.orb-spark {
+  pointer-events: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 0 6px rgba(196, 181, 253, 0.45);
+}
+
+@keyframes swirlRotateSlow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.animate-swirl-rotate-slow {
+  animation: swirlRotateSlow 12s ease-in-out infinite;
+}
+
+@keyframes swirlRotateSlower {
+  0% { transform: rotate(360deg); }
+  100% { transform: rotate(0deg); }
+}
+.animate-swirl-rotate-slower {
+  animation: swirlRotateSlower 18s ease-in-out infinite;
+}
+
+@keyframes nebulaBreathe {
+  0%, 100% { transform: scale(1); opacity: 0.55; }
+  50% { transform: scale(1.06); opacity: 0.75; }
+}
+.animate-nebula-breathe {
+  animation: nebulaBreathe 10s ease-in-out infinite;
+}
+
+@keyframes sparkDrift {
+  0%, 100% { transform: translate(0, 0); opacity: 0.35; }
+  50% { transform: translate(4px, -3px); opacity: 0.6; }
+}
+.animate-spark-drift {
+  animation: sparkDrift 14s ease-in-out infinite;
+}
+
 @keyframes pulse-ring {
   0%   { transform: scale(1); opacity: 0.5; }
   100% { transform: scale(1.5); opacity: 0; }
@@ -103,9 +189,19 @@ button, input, textarea {
   .animate-orb-thinking,
   .animate-orb-speaking,
   .animate-pulse-ring,
+  .animate-swirl-rotate-slow,
+  .animate-swirl-rotate-slower,
+  .animate-nebula-breathe,
+  .animate-spark-drift,
   .animate-fade-in,
   .animate-slide-up {
     animation: none !important;
+  }
+  /* Disable parallax */
+  .orb-shadow,
+  .orb-inner-glow,
+  .orb-highlight {
+    transition: none !important;
   }
 }
 

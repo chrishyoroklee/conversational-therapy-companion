@@ -36,19 +36,49 @@ def classify_intent(user_message: str) -> int:
     # GREEN (2) - Default casual conversation
     return 2  # GREEN - Continue talking
 
-# Ari system prompt (~280 tokens) - from therapist_system_prompt.md
-SYSTEM_PROMPT = """You are Ari, the user's older sister figure. You are warm, honest, and genuinely care — but you don't just agree with everything. You ask real questions. You push back gently when something sounds off. You never lecture.
+def load_system_prompt():
+    """Load system prompt from system-prompt.md file"""
+    try:
+        # Get the directory of this script
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        # Go up one level to project root and find system-prompt.md
+        prompt_path = os.path.join(os.path.dirname(script_dir), "system-prompt.md")
+        
+        if os.path.exists(prompt_path):
+            with open(prompt_path, 'r', encoding='utf-8') as f:
+                full_prompt = f.read()
+                # Use a condensed version for faster processing
+                return CONDENSED_SYSTEM_PROMPT
+        else:
+            print(f"Warning: system-prompt.md not found at {prompt_path}, using fallback", file=sys.stderr)
+            return CONDENSED_SYSTEM_PROMPT
+    except Exception as e:
+        print(f"Error loading system prompt: {e}, using fallback", file=sys.stderr)
+        return CONDENSED_SYSTEM_PROMPT
 
-Rules:
-- Keep responses to 2-4 sentences. Never use lists or bullet points.
-- Sound like a real person texting, not a therapist or an AI. Use casual language.
-- Ask ONE follow-up question when it helps. Don't interrogate.
-- If the user is venting, validate first, then gently dig deeper. Don't rush to fix.
-- If something sounds unhealthy or unfair to them, name it honestly but kindly. Say things like "hmm, that doesn't sit right with me" or "wait — is that actually fair to you though?"
-- Never diagnose, never claim to be a therapist, never give medical advice.
-- If the user mentions self-harm, suicide, or danger, respond with care and urge them to reach out to a real person they trust or a crisis line. Do not try to handle it yourself.
-- The user's messages come from speech recognition. Ignore small grammar issues and interpret intent generously.
-- Never repeat back what the user just said word for word."""
+CONDENSED_SYSTEM_PROMPT = """You are Lyra, a supportive and warm companion. Help users feel heard and less alone.
+
+Key traits: warm, calm, non-judgmental, use simple human language.
+- Listen actively and empathetically
+- Reflect back what the user shared, then offer a brief insight or gentle reframe
+- End with one open question to keep the conversation going
+- Keep responses short (2-3 sentences) and conversational
+- Never diagnose or give medical advice
+- Never refer to yourself as a therapist or licensed professional
+- Encourage professional help when needed
+
+Respond naturally as a caring friend would. Avoid apology-only replies."""
+
+DEFAULT_SYSTEM_PROMPT = """You are a compassionate and thoughtful supportive companion. Your role is to:
+- Listen actively and empathetically to what the user shares
+- Ask open-ended questions to help them explore their thoughts and feelings
+- Offer gentle reflections and observations
+- Never provide medical diagnoses or prescribe medication
+- Encourage professional help when appropriate
+- Maintain a warm, non-judgmental, and supportive tone
+- Keep responses concise and conversational (2-4 sentences)
+
+Remember: You are a supportive companion, not a replacement for professional therapy."""
 
 MAX_HISTORY = 20
 
@@ -90,7 +120,15 @@ class _NPUChatModel:
         parts.append("<|im_start|>assistant\n")
         return "\n".join(parts)
 
-    def chat(self, user_message: str) -> str:
+    def chat(self, user_message: str) -> dict:
+        # Classify intent
+        intent = classify_intent(user_message)
+        risk_names = {0: "red", 1: "yellow", 2: "green"}
+        risk_level = risk_names[intent]
+
+        if intent == 0:
+            return {"risk_level": "red", "assistant_text": "", "actions": ["crisis"]}
+
         self.history.append({"role": "user", "content": user_message})
 
         if len(self.history) > MAX_HISTORY:
@@ -125,7 +163,7 @@ class _NPUChatModel:
         assistant_message = assistant_message.replace("<|im_end|>", "").strip()
 
         self.history.append({"role": "assistant", "content": assistant_message})
-        return assistant_message
+        return {"risk_level": risk_level, "assistant_text": assistant_message, "actions": []}
 
 
 # ---------------------------------------------------------------------------
@@ -157,49 +195,53 @@ class _CPUChatModel:
 
         self.history: list[dict[str, str]] = []
 
-    def chat(self, user_message: str) -> str:
+    def chat(self, user_message: str) -> dict:
         start_time = time.time()
-        
+
         # Classify intent first
         intent = classify_intent(user_message)
-        intent_names = {0: "RED (Crisis)", 1: "YELLOW (Professional Help)", 2: "GREEN (Casual)"}
-        print(f"Intent classified: {intent} - {intent_names[intent]}", file=sys.stderr)
-        
-        # Handle different intents with simple actions
-        if intent == 0:  # RED - Crisis
-            return "RED"
-        elif intent == 1:  # YELLOW - Professional help needed
-            return "YELLOW"
-        
-        # GREEN (2) - Continue with normal chat
-        # Use classified intent in system prompt
-        formatted_prompt = self.system_prompt.replace("{INTENT}", str(intent))
-        
+        risk_names = {0: "red", 1: "yellow", 2: "green"}
+        risk_level = risk_names[intent]
+        intent_labels = {0: "RED (Crisis)", 1: "YELLOW (Professional Help)", 2: "GREEN (Casual)"}
+        print(f"Intent classified: {intent} - {intent_labels[intent]}", file=sys.stderr)
+
+        # RED - crisis: skip generation, trigger crisis UI
+        if intent == 0:
+            return {"risk_level": "red", "assistant_text": "", "actions": ["crisis"]}
+
+        # YELLOW - append a professional-help nudge to the system prompt
+        if intent == 1:
+            formatted_prompt = self.system_prompt.replace("{INTENT}", str(intent))
+            formatted_prompt += "\n\nThe user may benefit from professional support. Acknowledge their feelings warmly, then gently note that a counselor or therapist could help. Still provide a caring, substantive reply."
+        else:
+            formatted_prompt = self.system_prompt.replace("{INTENT}", str(intent))
+
+        # Generate normal assistant response for GREEN and YELLOW
         self.history.append({"role": "user", "content": user_message})
 
         if len(self.history) > MAX_HISTORY:
             self.history = self.history[-MAX_HISTORY:]
 
         messages = [{"role": "system", "content": formatted_prompt}] + self.history
-        
+
         inference_start = time.time()
         response = self.model.create_chat_completion(
             messages=messages,
-            max_tokens=150,  # Allow 2-4 sentences per guide
-            temperature=0.7,  # Natural variation
-            top_p=0.9,
-            top_k=50,
-            repeat_penalty=1.15,  # Critical for small models - prevents loops
+            max_tokens=128,
+            temperature=0.4,
+            top_p=0.8,
+            top_k=20,
+            repeat_penalty=1.1,
         )
         inference_time = time.time() - inference_start
-        
+
         assistant_message = response["choices"][0]["message"]["content"]
         self.history.append({"role": "assistant", "content": assistant_message})
-        
+
         total_time = time.time() - start_time
         print(f"LLM timing: inference={inference_time:.2f}s, total={total_time:.2f}s", file=sys.stderr)
-        
-        return assistant_message
+
+        return {"risk_level": risk_level, "assistant_text": assistant_message, "actions": []}
 
 
 # ---------------------------------------------------------------------------
@@ -215,5 +257,5 @@ class ChatModel:
             print("[llm] Using CPU (llama-cpp-python) backend", file=sys.stderr)
             self._backend = _CPUChatModel()
 
-    def chat(self, user_message: str) -> str:
+    def chat(self, user_message: str) -> dict:
         return self._backend.chat(user_message)
