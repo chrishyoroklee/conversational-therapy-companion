@@ -102,6 +102,12 @@ def main():
                 actions = result.get("actions", [])
 
                 log(f"Response (risk={risk_level}): {assistant_text[:50]}...")
+                
+                # Emit code_yellow message when YELLOW intent is detected
+                if risk_level == "yellow":
+                    log("YELLOW intent detected - triggering Code Yellow")
+                    send({"type": "code_yellow", "triggered": True})
+                
                 send({
                     "type": "llm_result",
                     "text": assistant_text,
