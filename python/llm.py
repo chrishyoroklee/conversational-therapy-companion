@@ -189,9 +189,9 @@ class _CPUChatModel:
         )
         print("LLM model loaded", file=sys.stderr)
         
-        # Load system prompt from file
-        self.system_prompt = load_system_prompt()
-        print("System prompt loaded", file=sys.stderr)
+        # Use the Ari system prompt
+        self.system_prompt = SYSTEM_PROMPT
+        print("Ari system prompt loaded", file=sys.stderr)
 
         self.history: list[dict[str, str]] = []
 
