@@ -6,9 +6,11 @@ A local AI voice assistant with a therapist persona. All AI processing runs on y
 
 ```
 Electron (React/TS UI)  <-->  Node.js Main Process  <-->  Python Sidecar
-                                                          ├── ASR (faster-whisper / Whisper ONNX+QNN)
-                                                          ├── LLM (llama-cpp / Qwen ONNX+QNN)
+                                                          ├── ASR (faster-whisper / Native QNN)
+                                                          ├── LLM (llama-cpp / Native QNN*)
                                                           └── TTS (edge-tts)
+                                                          
+* LLM NPU support available but requires additional setup
 ```
 
 The app uses a **Multi-Process Sidecar Architecture**:
@@ -212,24 +214,35 @@ python/models/whisper/whisper_tiny.serialized.bin
 python/models/whisper/whisper_small.serialized.bin
 ```
 
-### Step 5: Export Qwen Model for QNN (Optional)
+### Step 5: Export Qwen Model for QNN (Optional - Advanced)
 
-For LLM acceleration, you can export Qwen models to QNN format:
+**Note**: Qwen LLM export requires significant resources and has complex dependencies.
 
+**Requirements for LLM export:**
+- **Memory**: 60GB RAM + swap space minimum
+- **Dependencies**: Specific torch/transformers versions
+- **Time**: 10+ minutes for ONNX export
+
+**Available Qwen models:**
 ```bash
-# List available Qwen models (choose non-quantized for Windows)
+# List available non-quantized Qwen models  
 python -c "import qai_hub_models; import os; models_path = os.path.dirname(qai_hub_models.__file__) + '/models'; qwen = [f for f in os.listdir(models_path) if 'qwen' in f and 'quantized' not in f]; print('\n'.join(sorted(qwen)))"
+```
 
-# Export to native QNN (example with smaller model)
-python -m qai_hub_models.models.qwen2_5_0_5b_instruct.export \
+**Current models available:**
+- `qwen2_5_1_5b_instruct` (1.5B params - smallest, ~3GB model)  
+- `qwen2_5_7b_instruct` (7B params - ~14GB model)
+- `qwen2_7b_instruct` (7B params - ~14GB model)
+
+**Export command** (requires sufficient memory):
+```bash
+# Export smallest Qwen model to genie format
+python -m qai_hub_models.models.qwen2_5_1_5b_instruct.export \
   --device "Snapdragon X Elite CRD" \
-  --target-runtime qnn_context_binary
+  --target-runtime genie
 ```
 
-This uploads models to QAI Hub for cloud compilation. Download results to:
-```
-python/models/qwen-qnn/qwen.serialized.bin
-```
+**Alternative**: Use the existing GGUF model with llama-cpp-python (CPU) until LLM NPU support is ready.
 
 ### Step 6: Verify Native QNN Runtime
 
