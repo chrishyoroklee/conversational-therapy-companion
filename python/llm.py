@@ -3,7 +3,7 @@ import sys
 import time
 import re
 
-from qnn_utils import is_npu_available
+from qnn_utils import is_npu_available_llm
 
 def classify_intent(user_message: str) -> int:
     """Classify user intent: 0=RED (crisis), 1=YELLOW (therapist needed), 2=GREEN (casual chat)"""
@@ -85,10 +85,92 @@ MAX_HISTORY = 20
 
 def _use_npu_llm() -> bool:
     """Decide whether to use the ONNX/QNN LLM path."""
-    use_npu = os.getenv("USE_NPU", "auto").lower()
+    use_npu = os.getenv("USE_NPU_LLM", os.getenv("USE_NPU", "auto")).lower()
     if use_npu == "false":
         return False
-    return is_npu_available()
+    return is_npu_available_llm()
+
+
+# ---------------------------------------------------------------------------
+# AnythingLLM API backend
+# ---------------------------------------------------------------------------
+
+class _AnythingLLMChatModel:
+    """Chat model using AnythingLLM server API (Llama 3.2 3B on NPU)."""
+
+    def __init__(self):
+        import requests
+
+        self.api_url = os.getenv("ANYTHINGLLM_API_URL", "http://localhost:3001/api/v1")
+        self.api_key = os.getenv("ANYTHINGLLM_API_KEY", "")
+        self.workspace_slug = os.getenv("ANYTHINGLLM_WORKSPACE_SLUG", "default")
+
+        if not self.api_key:
+            raise RuntimeError("ANYTHINGLLM_API_KEY not set in .env")
+
+        print(f"[llm] Connecting to AnythingLLM at {self.api_url}", file=sys.stderr)
+        print(f"[llm] Using workspace: {self.workspace_slug}", file=sys.stderr)
+
+        # Test connection
+        try:
+            headers = {"Authorization": f"Bearer {self.api_key}"}
+            response = requests.get(f"{self.api_url}/auth", headers=headers, timeout=5)
+            response.raise_for_status()
+            print("[llm] AnythingLLM connection successful", file=sys.stderr)
+        except Exception as e:
+            raise RuntimeError(f"Failed to connect to AnythingLLM: {e}")
+
+        self.history: list[dict[str, str]] = []
+
+    def chat(self, user_message: str) -> dict:
+        import requests
+
+        # Classify intent
+        intent = classify_intent(user_message)
+        risk_names = {0: "red", 1: "yellow", 2: "green"}
+        risk_level = risk_names[intent]
+
+        if intent == 0:
+            return {"risk_level": "red", "assistant_text": "", "actions": ["crisis"]}
+
+        self.history.append({"role": "user", "content": user_message})
+
+        if len(self.history) > MAX_HISTORY:
+            self.history = self.history[-MAX_HISTORY:]
+
+        # Build messages with system prompt
+        messages = [{"role": "system", "content": CONDENSED_SYSTEM_PROMPT}] + self.history
+
+        # Call AnythingLLM API
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "message": user_message,
+            "mode": "chat",
+            "sessionId": "therapy-session"
+        }
+
+        try:
+            response = requests.post(
+                f"{self.api_url}/workspace/{self.workspace_slug}/chat",
+                headers=headers,
+                json=payload,
+                timeout=30
+            )
+            response.raise_for_status()
+            result = response.json()
+
+            assistant_message = result.get("textResponse", "")
+            self.history.append({"role": "assistant", "content": assistant_message})
+
+            return {"risk_level": risk_level, "assistant_text": assistant_message, "actions": []}
+
+        except Exception as e:
+            print(f"[llm] AnythingLLM API error: {e}", file=sys.stderr)
+            return {"risk_level": risk_level, "assistant_text": "I'm having trouble connecting right now. Please try again.", "actions": []}
 
 
 # ---------------------------------------------------------------------------
@@ -250,7 +332,13 @@ class _CPUChatModel:
 
 class ChatModel:
     def __init__(self):
-        if _use_npu_llm():
+        # Check for AnythingLLM first
+        use_anythingllm = os.getenv("USE_ANYTHINGLLM", "false").lower() == "true"
+
+        if use_anythingllm:
+            print("[llm] Using AnythingLLM backend", file=sys.stderr)
+            self._backend = _AnythingLLMChatModel()
+        elif _use_npu_llm():
             print("[llm] Using NPU (onnxruntime-genai + QNN) backend", file=sys.stderr)
             self._backend = _NPUChatModel()
         else:

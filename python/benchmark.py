@@ -251,11 +251,53 @@ def benchmark_llm(rounds: int):
         print(f"    CPU backend failed: {e}", flush=True)
         results["cpu"] = None
 
-    # --- NPU backend ---
-    if not is_npu_available():
-        print("\n  NPU not available — skipping NPU LLM benchmark", flush=True)
-        results["npu"] = None
-    else:
+    # --- NPU backend (AnythingLLM or native QNN) ---
+    use_anythingllm = os.getenv("USE_ANYTHINGLLM", "false").lower() == "true"
+
+    if use_anythingllm:
+        print("\n  Loading NPU (AnythingLLM + Llama 3.2 3B on NPU) backend...", flush=True)
+        try:
+            from llm import _AnythingLLMChatModel
+
+            npu_llm = _AnythingLLMChatModel()
+
+            # Warmup
+            npu_llm.chat("Hello")
+            npu_llm.history.clear()
+
+            latencies = []
+            tok_per_sec = []
+            for i in range(rounds):
+                prompt = test_prompts[i % len(test_prompts)]
+                monitor.start()
+                t0 = time.perf_counter()
+                response_dict = npu_llm.chat(prompt)
+                elapsed = time.perf_counter() - t0
+                res = monitor.stop()
+                latencies.append(elapsed)
+                # Extract text from response dict
+                response = response_dict.get("assistant_text", "")
+                n_tokens = len(response.split())
+                tps = n_tokens / elapsed if elapsed > 0 else 0
+                tok_per_sec.append(tps)
+                print(f"    NPU round {i + 1}/{rounds}: {fmt_ms(elapsed)}  "
+                      f"~{n_tokens} tok  ({tps:.1f} tok/s)", flush=True)
+
+            results["npu"] = {
+                "latencies": latencies,
+                "mean": statistics.mean(latencies),
+                "median": statistics.median(latencies),
+                "stdev": statistics.stdev(latencies) if len(latencies) > 1 else 0,
+                "min": min(latencies),
+                "max": max(latencies),
+                "tok_per_sec_avg": statistics.mean(tok_per_sec),
+                **res,
+            }
+            del npu_llm
+        except Exception as e:
+            print(f"    NPU (AnythingLLM) backend failed: {e}", flush=True)
+            results["npu"] = None
+    elif is_npu_available():
         print("\n  Loading NPU (onnxruntime-genai + QNN) backend...", flush=True)
         try:
             from llm import _NPUChatModel
@@ -296,6 +338,9 @@ def benchmark_llm(rounds: int):
         except Exception as e:
             print(f"    NPU backend failed: {e}", flush=True)
             results["npu"] = None
+    else:
+        print("\n  NPU not available — skipping NPU LLM benchmark", flush=True)
+        results["npu"] = None
 
     return results
 
@@ -406,8 +451,15 @@ def main():
         print("        pip install psutil\n")
 
     from qnn_utils import is_npu_available
-    npu = is_npu_available()
-    print(f"  NPU available: {npu}")
+    use_anythingllm = os.getenv("USE_ANYTHINGLLM", "false").lower() == "true"
+    native_npu = is_npu_available()
+
+    if use_anythingllm:
+        print(f"  NPU available: True (AnythingLLM + Llama 3.2 3B)")
+    elif native_npu:
+        print(f"  NPU available: True (native QNN)")
+    else:
+        print(f"  NPU available: False")
     print(f"  Rounds: {args.rounds}")
 
     # ASR benchmark
