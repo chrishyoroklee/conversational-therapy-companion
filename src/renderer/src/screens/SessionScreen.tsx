@@ -106,7 +106,7 @@ export default function SessionScreen({
       )}
 
       {/* Transcript */}
-      <Transcript messages={messages} />
+      <Transcript messages={messages} isThinking={orbState === 'thinking'} />
 
       {/* Input area */}
       <div className="pb-6 pt-2 space-y-3 flex-shrink-0">
