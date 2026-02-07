@@ -43,6 +43,7 @@ def main():
         from llm import ChatModel, classify_intent
         llm = ChatModel()
         classify = classify_intent
+        llm.warmup()
     except Exception as e:
         log(f"LLM not available: {e}")
 
