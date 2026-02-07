@@ -6,9 +6,11 @@ A local AI voice assistant with a therapist persona. All AI processing runs on y
 
 ```
 Electron (React/TS UI)  <-->  Node.js Main Process  <-->  Python Sidecar
-                                                          ├── ASR (faster-whisper / Whisper ONNX+QNN)
-                                                          ├── LLM (llama-cpp / Qwen ONNX+QNN)
+                                                          ├── ASR (faster-whisper / Native QNN)
+                                                          ├── LLM (llama-cpp / Native QNN*)
                                                           └── TTS (edge-tts)
+                                                          
+* LLM NPU support available but requires additional setup
 ```
 
 The app uses a **Multi-Process Sidecar Architecture**:
@@ -40,7 +42,7 @@ npm install
 
 # Python virtual environment (Windows)
 python -m venv python\venv
-source python/venv/Scripts/activate
+python\venv\Scripts\activate
 pip install -r python/requirements.txt
 ```
 
@@ -150,12 +152,12 @@ Set `USE_NPU` in `python/.env`:
 1. Download and install the [Qualcomm AI Engine Direct SDK](https://www.qualcomm.com/developer/software/qualcomm-ai-engine-direct-sdk) (QAIRT)
 2. Set environment variables:
    ```powershell
-   $env:QNN_SDK_ROOT = "C:\Qualcomm\AIStack\QAIRT\2.28.0"
+   $env:QNN_SDK_ROOT = "C:\Qualcomm\AIStack\QAIRT\2.43.0.260128"
    $env:PATH += ";$env:QNN_SDK_ROOT\lib\aarch64-windows-msvc"
    ```
 3. Verify the HTP backend DLL exists:
    ```
-   C:\Qualcomm\AIStack\QAIRT\2.28.0\lib\aarch64-windows-msvc\QnnHtp.dll
+   C:\Qualcomm\AIStack\QAIRT\2.43.0.260128\lib\aarch64-windows-msvc\QnnHtp.dll
    ```
 
 ### Step 2: Install Qualcomm AI Hub
@@ -182,62 +184,96 @@ pip install openai-whisper
 pip install qai-hub-models
 ```
 
-### Step 4: Export Whisper Small Quantized to ONNX
+### Step 4: Export Whisper Models to Native QNN Format
 
-Export the Whisper encoder and decoder models for QNN:
+**Note**: AIMET-ONNX quantized models are not supported on Windows. Instead, we use **native Qualcomm AI Runtime** with QNN context binaries compiled directly on QAI Hub.
 
-```bash
-# Using qai_hub_models to export Whisper Small for QNN
-python -m qai_hub_models.models.whisper_small_en.export \
-  --device "Snapdragon X Elite CRD" \
-  --target-runtime onnx
-
-# Copy the exported models into the project
-mkdir -p python/models/whisper
-cp build/whisper_small_en/WhisperEncoder.onnx python/models/whisper/
-cp build/whisper_small_en/WhisperDecoder.onnx python/models/whisper/
-```
-
-Verify model paths match `python/.env`:
-```
-WHISPER_ONNX_ENCODER=models/whisper/WhisperEncoder.onnx
-WHISPER_ONNX_DECODER=models/whisper/WhisperDecoder.onnx
-```
-
-### Step 5: Export Qwen 2.5 1.5B for QNN
+Export Whisper models to native QNN format:
 
 ```bash
-# Export Qwen 2.5 1.5B Instruct for QNN via onnxruntime-genai
-python -m qai_hub_models.models.qwen2_5_7b_instruct_quantized.export \
+# Export Whisper Tiny (39MB model, faster compilation)
+python -m qai_hub_models.models.whisper_tiny.export \
   --device "Snapdragon X Elite CRD" \
-  --target-runtime onnx
+  --target-runtime qnn_context_binary
 
-# Copy the exported model directory
-cp -r build/qwen2_5/ python/models/qwen-qnn/
+# Export Whisper Small (242MB model, better accuracy) 
+python -m qai_hub_models.models.whisper_small.export \
+  --device "Snapdragon X Elite CRD" \
+  --target-runtime qnn_context_binary
 ```
 
-Verify model path matches `python/.env`:
+The export uploads models to QAI Hub for cloud compilation. You'll receive job IDs like:
+- `jp87w3xo5` (whisper_tiny)
+- `jpry1407g` (whisper_small)
+
+**Check job status**: Visit `https://workbench.aihub.qualcomm.com/jobs/{job_id}/`
+
+**Download compiled models**: Once jobs complete, download the QNN context binaries to:
 ```
-QNN_LLM_MODEL_PATH=models/qwen-qnn
+python/models/whisper/whisper_tiny.serialized.bin
+python/models/whisper/whisper_small.serialized.bin
 ```
 
-### Step 6: Verify NPU is being used
+### Step 5: Export Qwen Model for QNN (Optional - Advanced)
+
+**Note**: Qwen LLM export requires significant resources and has complex dependencies.
+
+**Requirements for LLM export:**
+- **Memory**: 60GB RAM + swap space minimum
+- **Dependencies**: Specific torch/transformers versions
+- **Time**: 10+ minutes for ONNX export
+
+**Available Qwen models:**
+```bash
+# List available non-quantized Qwen models  
+python -c "import qai_hub_models; import os; models_path = os.path.dirname(qai_hub_models.__file__) + '/models'; qwen = [f for f in os.listdir(models_path) if 'qwen' in f and 'quantized' not in f]; print('\n'.join(sorted(qwen)))"
+```
+
+**Current models available:**
+- `qwen2_5_1_5b_instruct` (1.5B params - smallest, ~3GB model)  
+- `qwen2_5_7b_instruct` (7B params - ~14GB model)
+- `qwen2_7b_instruct` (7B params - ~14GB model)
+
+**Export command** (requires sufficient memory):
+```bash
+# Export smallest Qwen model to genie format
+python -m qai_hub_models.models.qwen2_5_1_5b_instruct.export \
+  --device "Snapdragon X Elite CRD" \
+  --target-runtime genie
+```
+
+**Alternative**: Use the existing GGUF model with llama-cpp-python (CPU) until LLM NPU support is ready.
+
+### Step 6: Verify Native QNN Runtime
 
 Run the app and check stderr output for these log lines:
 
 ```
-[qnn_utils] QNNExecutionProvider detected
-[asr] Using NPU (ONNX+QNN) Whisper backend
-[llm] Using NPU (onnxruntime-genai + QNN) backend
+[qnn_utils] Native QNN Runtime detected  
+[asr] Using native QNN Whisper backend
+[llm] Using native QNN backend
 ```
 
-If you see `QNNExecutionProvider not found`, the QNN SDK is not properly installed or the `QnnHtp.dll` is not on your PATH.
+If you see `QNN Runtime not found`, verify the QNN SDK installation:
+```powershell
+# Check QNN SDK path
+echo $env:QNN_SDK_ROOT
+Get-ChildItem "$env:QNN_SDK_ROOT\lib\aarch64-windows-msvc\QnnHtp.dll"
+
+# Test QNN platform validator  
+& "$env:QNN_SDK_ROOT\bin\aarch64-windows-msvc\qnn-platform-validator.exe"
+```
 
 ### Quick test (without the full app)
 
 ```bash
 cd python
-python -c "from qnn_utils import is_npu_available; print('NPU:', is_npu_available())"
+
+# Test native QNN runtime detection
+python -c "from qnn_utils import is_qnn_available; print('Native QNN:', is_qnn_available())"
+
+# Test QNN platform validator
+& "C:\Qualcomm\AIStack\QAIRT\2.43.0.260128\bin\aarch64-windows-msvc\qnn-platform-validator.exe"
 ```
 
 ### Benchmarking NPU vs CPU

@@ -4,6 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { startSidecar, stopSidecar } from './sidecar'
 import { cleanupTempFiles } from './audio'
 import { setupIPC } from './ipc'
+import { setupCodeYellow } from './codeYellow'
 
 function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
@@ -48,6 +49,7 @@ app.whenReady().then(() => {
 
   const mainWindow = createWindow()
   setupIPC(mainWindow)
+  setupCodeYellow(mainWindow)
 
   // Start the Python sidecar after renderer has loaded so IPC listeners are ready
   mainWindow.webContents.on('did-finish-load', async () => {

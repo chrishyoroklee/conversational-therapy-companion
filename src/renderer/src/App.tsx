@@ -1,10 +1,11 @@
+import { useState, useEffect, useCallback } from 'react'
 import { useLyraState } from './hooks/useLyraState'
 import LandingScreen from './screens/LandingScreen'
 import OnboardingScreen from './screens/OnboardingScreen'
 import CheckInScreen from './screens/CheckInScreen'
 import SessionScreen from './screens/SessionScreen'
 import CrisisScreen from './screens/CrisisScreen'
-import GratitudeScreen from './screens/GratitudeScreen'
+import CodeYellowOverlay from './components/CodeYellowOverlay'
 
 export default function App(): React.JSX.Element {
   const {
@@ -20,6 +21,27 @@ export default function App(): React.JSX.Element {
     requestEndSession,
     confirmEndSession,
   } = useLyraState()
+
+  const [codeYellowActive, setCodeYellowActive] = useState(false)
+  const [codeYellowDismissed, setCodeYellowDismissed] = useState(false)
+
+  useEffect(() => {
+    const cleanup = window.therapyAPI.codeYellow.onTriggered(() => {
+      if (!codeYellowDismissed) {
+        setCodeYellowActive(true)
+      }
+    })
+    return cleanup
+  }, [codeYellowDismissed])
+
+  const handleCodeYellowDismiss = useCallback(() => {
+    setCodeYellowActive(false)
+    setCodeYellowDismissed(true)
+  }, [])
+
+  const overlay = codeYellowActive
+    ? <CodeYellowOverlay onDismiss={handleCodeYellowDismiss} />
+    : null
 
   switch (state.screen) {
     case 'landing':
@@ -50,17 +72,17 @@ export default function App(): React.JSX.Element {
 
     case 'session':
       return (
-        <SessionScreen
-          state={state}
-          onStartRecording={startRecording}
-          onStopRecording={stopRecording}
-          onSendText={sendText}
-          onToggleInputMode={toggleInputMode}
-          onEndSession={requestEndSession}
-          onConfirmEndSession={confirmEndSession}
-          onSetIntent={setIntent}
-          onDeclineGratitude={declineGratitude}
-        />
+        <>
+          <SessionScreen
+            state={state}
+            onStartRecording={startRecording}
+            onStopRecording={stopRecording}
+            onSendText={sendText}
+            onToggleInputMode={toggleInputMode}
+            onEndSession={() => navigate('landing')}
+          />
+          {overlay}
+        </>
       )
 
     case 'crisis':
