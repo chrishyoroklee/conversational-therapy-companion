@@ -6,7 +6,7 @@ A local AI voice assistant with a therapist persona. All AI processing runs on y
 
 ```
 Electron (React/TS UI)  <-->  Node.js Main Process  <-->  Python Sidecar
-                                                          ├── ASR (faster-whisper)
+                                                          ├── ASR (whisper)
                                                           ├── LLM (llama-cpp)
                                                           └── TTS (edge-tts)
 ```
@@ -75,7 +75,7 @@ npm run dev
 ### Audio Recording Issues
 If you encounter audio recording errors:
 
-1. **Check microphone permissions**: Ensure your browser/app has microphone access
+1. **Check microphone permissions**: Ensure your browser/app has microphone access. Change your mic from Qualcomm mic to respective mic on your PC
 2. **Find your audio device**: Run this command to list available devices:
    ```powershell
    ffmpeg -f dshow -list_devices true -i dummy
