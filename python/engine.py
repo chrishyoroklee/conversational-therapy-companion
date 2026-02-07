@@ -41,6 +41,7 @@ def main():
     try:
         from llm import ChatModel
         llm = ChatModel()
+        llm.warmup()  # Pre-warm the LLM so first user message is fast
     except Exception as e:
         log(f"LLM not available: {e}")
 
