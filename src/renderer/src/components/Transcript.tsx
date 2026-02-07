@@ -1,16 +1,18 @@
 import { useEffect, useRef } from 'react'
 import type { LyraMessage } from '../types/lyra'
+import ThinkingIndicator from './ThinkingIndicator'
 
 interface TranscriptProps {
   messages: LyraMessage[]
+  isThinking?: boolean
 }
 
-export default function Transcript({ messages }: TranscriptProps) {
+export default function Transcript({ messages, isThinking = false }: TranscriptProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  }, [messages, isThinking])
 
   if (messages.length === 0) return null
 
@@ -38,6 +40,7 @@ export default function Transcript({ messages }: TranscriptProps) {
           <p className="leading-relaxed">{msg.text}</p>
         </div>
       ))}
+      {isThinking && <ThinkingIndicator />}
       <div ref={bottomRef} />
     </div>
   )
