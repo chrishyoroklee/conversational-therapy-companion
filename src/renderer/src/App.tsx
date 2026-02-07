@@ -88,7 +88,10 @@ export default function App(): React.JSX.Element {
             onStopRecording={stopRecording}
             onSendText={sendText}
             onToggleInputMode={toggleInputMode}
-            onEndSession={() => navigate('landing')}
+            onEndSession={requestEndSession}
+            onConfirmEndSession={confirmEndSession}
+            onSetIntent={setIntent}
+            onDeclineGratitude={declineGratitude}
           />
           {overlay}
         </>
