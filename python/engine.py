@@ -38,9 +38,11 @@ def main():
     llm = None
     tts = None
 
+    classify = None
     try:
-        from llm import ChatModel
+        from llm import ChatModel, classify_intent
         llm = ChatModel()
+        classify = classify_intent
     except Exception as e:
         log(f"LLM not available: {e}")
 
@@ -95,6 +97,15 @@ def main():
 
                 log(f"Generating response for: {text[:50]}...")
                 send({"type": "llm_processing"})
+
+                # Early intent detection — trigger code yellow immediately
+                # before waiting for LLM inference (same pattern as red)
+                if classify:
+                    intent = classify(text)
+                    if intent == 1:
+                        log("YELLOW intent detected pre-inference - triggering Code Yellow immediately")
+                        send({"type": "code_yellow", "triggered": True})
+
                 result = llm.chat(text)
 
                 risk_level = result.get("risk_level", "green")
@@ -102,12 +113,7 @@ def main():
                 actions = result.get("actions", [])
 
                 log(f"Response (risk={risk_level}): {assistant_text[:50]}...")
-                
-                # Emit code_yellow message when YELLOW intent is detected
-                if risk_level == "yellow":
-                    log("YELLOW intent detected - triggering Code Yellow")
-                    send({"type": "code_yellow", "triggered": True})
-                
+
                 send({
                     "type": "llm_result",
                     "text": assistant_text,
