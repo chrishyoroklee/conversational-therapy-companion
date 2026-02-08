@@ -27,7 +27,7 @@ The app uses a **Multi-Process Sidecar Architecture**:
 ### 1. System dependencies
 
 1. Install [Node.js](https://nodejs.org/) (18+)
-2. Install [Python](https://www.python.org/downloads/) (3.10+) — check "Add to PATH" during install  
+2. Install [Python](https://www.python.org/downloads/) (3.10+) — check "Add to PATH" during install
 3. Install [FFmpeg](https://ffmpeg.org/download.html#build-windows) and add it to your PATH
    - Or use Chocolatey: `choco install ffmpeg`
    - Or use winget: `winget install Gyan.FFmpeg`
@@ -40,7 +40,8 @@ npm install
 
 # Python virtual environment (Windows)
 python -m venv python\venv
-python\venv\Scripts\activate
+python\venv\Scripts\activate # Windows
+source python/venv/Scripts/activate # Linux/WSL
 pip install -r python/requirements.txt
 ```
 
@@ -60,6 +61,9 @@ ASR (Whisper) downloads its model automatically on first run. TTS (edge-tts) str
 
 ```powershell
 Copy-Item ".env.example" ".env"
+
+Change microphone in src/main/audio.ts to your microphone name:
+# i.e. const deviceName = 'Microphone Array (Realtek(R) Audio)'
 ```
 
 The defaults work out of the box if you downloaded the Qwen model above. See `.env.example` for all options.

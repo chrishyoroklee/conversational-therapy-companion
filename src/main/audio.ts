@@ -22,7 +22,7 @@ export function startRecording(): string {
   let recordCommand: string
   if (process.platform === 'win32') {
     // Windows: Use FFmpeg to record from default audio input
-    const deviceName = 'Microphone Array (Qualcomm(R) Aqstic(TM) ACX Static Endpoints Audio Device)'
+    const deviceName = 'Microphone Array (Realtek(R) Audio)'
     recordCommand = `ffmpeg -hide_banner -loglevel error -f dshow -i audio="${deviceName}" -ar 16000 -ac 1 -acodec pcm_s16le -y "${filePath}"`
   } else {
     // macOS/Linux: Use sox (rec)
